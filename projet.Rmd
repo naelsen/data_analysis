@@ -1,0 +1,14 @@
+---
+title: "R Notebook"
+output: pdf_document
+---
+
+```{r}
+library(FactoMineR)
+library(MASS)
+```
+
+```{r}
+data <- read.csv("data/train.csv")
+str(data)
+```
