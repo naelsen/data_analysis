@@ -1,6 +1,6 @@
 ---
 title: "R Notebook"
-output: pdf_document
+output: html_document
 ---
 
 ```{r}
@@ -8,7 +8,51 @@ library(FactoMineR)
 library(MASS)
 ```
 
+On voit que les deux premieres colonnes (X, id) sont inutiles pour nos analyse, on va donc les suuprimer
 ```{r}
-data <- read.csv("data/train.csv")
+rm(list=ls())
+data <- read.csv("data/train.csv") 
 str(data)
+```
+
+```{r}
+data <- data[,c(-1,-2)] # On retire les colonnes inutiles
+row.names(data) <- paste("n°", sep="", 1:dim(data)[1]) # On modifie le nom des colonnes pour le style ;-)
+# On renomme les colonnes
+colnames(data) <- c("Genre", "Fidélité", "Age", "Type.du.vol", "Classe", "Distance", "Wifi", "Horaire.pratique", "Facilité.resevation", "Emplacement.porte", "Nourriture", "Enregistrement.en.ligne", "Siege.confort", "Loisir", "On.board.service", "Espace.jambe", "Gestion.bagage", "Checkin.service", "Inflight.service", "Propreté", "Retard.depart", "Retard.arrivé", "Satisfaction")
+str(data)
+summary(data)
+head(data)
+```
+
+```{r}
+data_quantitatif = data[,c(3,7:20)]
+summary(data_quantitatif)
+head(data_quantitatif)
+```
+
+```{r}
+data_bis <- data[1:50000,c(7:20,23)]
+res <- PCA(data_bis, quali.sup=15,graph = FALSE)
+plot(res,habillage=15, select="cos2 0.60", choix="ind")
+plot(res,select="cos2 0.60", choix="varcor")
+```
+
+```{r}
+barplot(res$eig[,2], col=rainbow(n=14,alpha=0.6,start=0,end=0.33),main="Contribution de chaque composante", ylab="Contribution en %")
+```
+
+On effectue la transformation ”double centrage” sur les données log-transformées afin de voir si on peut faire gagner en contribution les premieres composante afin d'etre plus précis lors de nos analyse.
+```{r}
+data_bis2 <- log(data_bis[,-15])
+data_bis2 <- t(scale(t(data_bis2)))
+res2 <- PCA(data_bis2, graph=FALSE)
+barplot(res2$eig[,2], col=rainbow(n=14,alpha=0.6,start=0.33,end=0.66),main="Contribution de chaque composante\n(Données log-transformées) ", ylab="Contribution en %")
+```
+On effectue la transformation ”double centrage” sur les données transformées par la racine carré afin de voir si on peut faire gagner en contribution les premieres composante afin d'etre plus précis lors de nos analyse.
+```{r}
+data_bis3 <- sqrt(data_bis[,-15])
+data_bis3 <- t(scale(t(data_bis3)))
+res3 <- PCA(data_bis3, graph=FALSE)
+barplot(res3$eig[,2], col=rainbow(n=14,alpha=0.6,start=0.66,end=1),main="Contribution de chaque composante\n(Données transformée par racine carrée)", ylab="Contribution en %")
 ```
