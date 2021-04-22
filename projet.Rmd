@@ -175,12 +175,32 @@ Il en est ressorti que les services proposés dans l'avion et le confort à bord
 ```{r}
 data_bis <- data[1:5000,c(1,2,4,5,23)]
 data_bis
-res.mca <-MCA(data_bis, quali.sup = 5, graph = FALSE)
+res.mca <-MCA(data_bis, quali.sup = 5)
 ```
 
 
 
 ```{r}
-res.mca
+#plot(res.mca, choix = "ind", habillage = 5)
+par(fig = c(0.1,0.7,0.3,0.9))
+#par(mfrow = c(1,2))
+barplot(res.mca$var$contrib[,1], las = 2, cex.names = 0.64, 
+        col=rainbow(n=9,alpha=0.6,start=0,end=0.5),
+        main = "Contribution des modalités pour l'axe 1",  cex.main = 1)
+par(fig = c(0.8,1,0,1), new = TRUE)
+barplot(res.mca$var$contrib[,2], las = 2, cex.names = 0.64,
+        col=rainbow(n=9,alpha=0.6,start=0.5,end=1),
+        main = "Contribution des modalités pour l'axe 2", cex.main = 1)
+par(fig = c(0.1,0.17,0.6,0.25), new = TRUE)
+barplot(res.mca$eig[,2])
+```
+
+```{r}
+barplot(res.mca$eig[,2])
+```
+
+```{r}
+library(factoextra)
+fviz_mca_biplot (res.mca, repel = TRUE, ggtheme = theme_minimal())
 ```
 
