@@ -82,6 +82,7 @@ Les variables quantitatives supplémentaires ne sont pas du tout interprétables
 plot(res,select="cos2 0.58", choix="varcor")
 ```
 
+
 On peut voir une nette séparation entre les individus satisfaits et non satisfaits. Les individus satisfaits sont ceux s'étant amusé et ayant trouvé l'avion propre. À l'inverse les individus non satisfaits n'ont pas trouvé l'avion propre et ne se sont pas amusés. On ne peut pas vraiment dire pour l'instant si la facilité de réservation et le wifi à bord influent.
 Ici par exemple l'individu n°686 ne s'est pas amusé à bord et n'a pas non plus trouvé l'avion propre et il n'est pas satisfait.
 ```{r}
@@ -159,6 +160,7 @@ barplot(res3$eig[,2], col=rainbow(n=14,alpha=0.6,start=0.66,end=1),main="Pourcen
 lines(seq(0.75,16.3,(16.3-0.75)/13),res3$eig[,2],type="b")
 text(seq(0.75,16.3,(16.3-0.75)/13),res3$eig[,2]-1, paste(round(res3$eig[,2],2),"%"), cex=0.7)
 ```
+
 Les transformations ne nous ont pas fait gagner plus d'informations au niveau des 2 premiers axes, on s'arrête là pour l'ACP.
 
 ### Conclusion ACP
