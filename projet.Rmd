@@ -1,58 +1,167 @@
 ---
-title: "R Notebook"
-output: html_document
+title: "Projet Analyse de données"
+author: "RAHBI Aissam & SENNOUN Naël"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document:
+    toc: true
+    toc_depth: 4
 ---
 
-```{r}
+```{r, echo=FALSE}
+# Reset de l'environnement
+rm(list=ls())
+# Import des librairies nécessaires pour les analyses.
 library(FactoMineR)
 library(MASS)
+library(rmarkdown)
 ```
 
-On voit que les deux premieres colonnes (X, id) sont inutiles pour nos analyse, on va donc les suuprimer
+# Introduction des données
+
+On voit que les deux premières colonnes (X & id) sont inutiles pour nos analyses, on va donc les supprimer
 ```{r}
-rm(list=ls())
 data <- read.csv("data/train.csv") 
 str(data)
 ```
 
 ```{r}
-data <- data[,c(-1,-2)] # On retire les colonnes inutiles
-row.names(data) <- paste("n°", sep="", 1:dim(data)[1]) # On modifie le nom des colonnes pour le style ;-)
-# On renomme les colonnes
+# On retire les colonnes inutiles
+data <- data[,c(-1,-2)]
+# On modifie les noms des colonnes pour le style ;-)
+row.names(data) <- paste("n°", sep="", 1:dim(data)[1]) 
+# On renomme les colonnes pour avoir des noms moins longs (Utile pour l'affichage)
 colnames(data) <- c("Genre", "Fidélité", "Age", "Type.du.vol", "Classe", "Distance", "Wifi", "Horaire.pratique", "Facilité.resevation", "Emplacement.porte", "Nourriture", "Enregistrement.en.ligne", "Siege.confort", "Loisir", "On.board.service", "Espace.jambe", "Gestion.bagage", "Checkin.service", "Inflight.service", "Propreté", "Retard.depart", "Retard.arrivé", "Satisfaction")
 str(data)
+```
+
+Petit avant gout des données :
+```{r}
+paged_table(data)
+```
+Les notes sont assez homogènes, elles ont toutes :
+
+* Un 1er quartile égal à 2 ou 3
+
+* Une médiane égal à 3 ou 4.
+
+* Un 3-ème quartile égale à 4 ou 5.
+
+* Les moyennes pour les notes vont de 2.73 à 3.64.
+
+* On peut aussi observer les autres variables mais elles ne seront pas importantes pour la mise en oeuvre de l'ACP
+
+```{r}
 summary(data)
-head(data)
 ```
+# Analyse des données
+
+## ACP
+
+On récupère toutes les données quantitatives et la satisfaction.
+
+On ne prend que les 5000 premières lignes car le data set est trop gros (+100 000 lignes)
 
 ```{r}
-data_quantitatif = data[,c(3,7:20)]
-summary(data_quantitatif)
-head(data_quantitatif)
+# On récupère Âge/Distance du vol/Retard Depart/Retard Arrivé (colonne 3/6/21/22), les notes (colonnes 7 à 20) et la satisfaction (colonne 23)
+data_bis <- data[1:5000,c(3,6,21,22,7:20,23)]
+res <- PCA(data_bis, quanti.sup=1:4, quali.sup=19, graph=FALSE)
+```
+On revient sur nos données pour voir s'il n'y a pas eu de changement trop brutal :
+```{r}
+summary(data_bis)
+```
+Les individus ou variables peuvent être proches dans le plan mais eloignés dans l'espace s'ils sont mal représentés dans le plan.
+Ainsi, il est important d'expliquer les individus avec des variables bien representées dans le plan.
+Pour cela on veillera à ne pas prendre les variables et individus ayant un cos2 trop bas. Ici on choisit un cos2 égale à 0.58 afin d'avoir au moins 4 variables à utiliser afin d'expliquer nos individus sur les axes 1 et 2.
+
+Ici l'axe 1 va faire le contraste entre le confort à bord (droite) et l'inconfort (gauche), tandis que l'axe 2 fera le contraste entre les aspects techniques pour ce qui concerne le vol.
+
+Les variables quantitatives supplémentaires ne sont pas du tout interprétables
+```{r}
+plot(res,select="cos2 0.58", choix="varcor")
 ```
 
+On peut voir une nette séparation entre les individus satisfaits et non satisfaits. Les individus satisfaits sont ceux s'étant amusé et ayant trouvé l'avion propre. À l'inverse les individus non satisfaits n'ont pas trouvé l'avion propre et ne se sont pas amusés. On ne peut pas vraiment dire pour l'instant si la facilité de réservation et le wifi à bord influent.
+Ici par exemple l'individu n°686 ne s'est pas amusé à bord et n'a pas non plus trouvé l'avion propre et il n'est pas satisfait.
 ```{r}
-data_bis <- data[1:50000,c(7:20,23)]
-res <- PCA(data_bis, quali.sup=15,graph = FALSE)
-plot(res,habillage=15, select="cos2 0.60", choix="ind")
-plot(res,select="cos2 0.60", choix="varcor")
+plot(res,habillage=19, select="cos2 0.58", choix="ind")
 ```
 
+L'individu qui contribue le plus à l'axe 1 : 0.15%.
+
+Il y a 40 individus qui y contribuent pour plus de 0.1%
+
+On n'a pas d'individus atypiques, ce qui est normal car nos données sont des notes entre 0 et 5 et on a vu qu'elles étaient assez homogènes
 ```{r}
-barplot(res$eig[,2], col=rainbow(n=14,alpha=0.6,start=0,end=0.33),main="Contribution de chaque composante", ylab="Contribution en %")
+max(res$ind$contrib[,1])
+sum((res$ind$contrib[,1] > 0.1)*1)
 ```
 
-On effectue la transformation ”double centrage” sur les données log-transformées afin de voir si on peut faire gagner en contribution les premieres composante afin d'etre plus précis lors de nos analyse.
+On peut voir premièrement que les 3 premiers axes expliquent bien l'inertie sur les données. 
+Les axes étant orthogonaux, les axes 1 et 2 prennent en compte 26.99% + 16.90% = 43.89% du jeu de données expliquent 44.56% de l'inertie.
+On peut aussi voir que l'axe 2 et 3 expliquent à peu près autant l'un que l'autre l'inertie, ainsi on pourra aussi visualiser les données projetées sur le plan formé par l'axe 1 et 3 (même 2 et 3).
 ```{r}
-data_bis2 <- log(data_bis[,-15])
+barplot(res$eig[,2], col=rainbow(n=14,alpha=0.6,start=0,end=0.33),main="Pourcentage d'inertie expliquée par chaque axe", ylab="Contribution en %")
+lines(seq(0.75,16.3,(16.3-0.75)/13),res$eig[,2],type="b", xlim=c(0,max(res$eig[,2])+10))
+text(seq(0.75,16.3,(16.3-0.75)/13),res$eig[,2]-1, paste(round(res$eig[,2],2),"%"), cex=0.7)
+#text(5,22,paste(round(res$eig[,2],2)[1],"% +",round(res$eig[,2],2)[2],"% = ",round(res$eig[,2],2)[1]+round(res$eig[,2],2)[2],"%",sep=""))
+```
+
+On a un nouveau cercle de corrélation, ici on voit que :
+
+* Le confort des sièges, la nourriture et la propreté sont fortement corrélés
+* La gestion des bagages et les services proposés sont fortement corrélés
+* Dans ce plan les loisirs sont presque totalement expliqués par l'axe 1
+* L'axe 3 oppose le "confort" aux services qui sont faiblement corrélés dû à l'angle proche de 90 degrés
+
+
+```{r}
+plot(res, select="cos2 0.58", choix="varcor", axes = c(1,3))
+```
+
+Les passagers sont en général plus satisfait quand ils se sont amusé et que le service était agréable.
+```{r}
+plot(res, habillage=19, select="cos2 0.58", choix="ind", axes = c(1,3))
+```
+
+Ici on a le cercle de corrélation avec l'axe 2 et 3:
+```{r}
+plot(res, select="cos2 0.6", choix="varcor", axes = c(2,3))
+```
+Il n'y a pas grand-chose à interpréter car le barycentre des voyageurs satisfaite et non satisfaits sont tout les 2 au centre de gravité de ce plan.
+```{r}
+plot(res, choix="ind", axes = c(2,3))
+```
+
+### Transformations & double centrage
+
+Certains passagés ayant attribué comme notes 0 pour certaines catégories du vol on décide de ne pas faire de transformation par l'inverse car $\frac{1}{0}$ est un quotient indéterminé 
+
+#### Log-transformation
+On effectue la transformation ”double centrage” sur les données log-transformées afin de voir si on peut faire gagner en contribution les premières composantes afin d'être plus précis lors de nos analyses.
+```{r}
+data_bis2 <- log(data_bis[,c(-4:-1,-19)])
 data_bis2 <- t(scale(t(data_bis2)))
 res2 <- PCA(data_bis2, graph=FALSE)
-barplot(res2$eig[,2], col=rainbow(n=14,alpha=0.6,start=0.33,end=0.66),main="Contribution de chaque composante\n(Données log-transformées) ", ylab="Contribution en %")
+barplot(res2$eig[,2], col=rainbow(n=14,alpha=0.6,start=0.33,end=0.66),main="Pourcentage d'intertie expliquée par chaque axe\n(Données log-transformées) ", ylab="Contribution en %")
+lines(seq(0.75,16.3,(16.3-0.75)/13),res2$eig[,2],type="b")
+text(seq(0.75,16.3,(16.3-0.75)/13),res2$eig[,2]-1, paste(round(res2$eig[,2],2),"%"), cex=0.7)
 ```
-On effectue la transformation ”double centrage” sur les données transformées par la racine carré afin de voir si on peut faire gagner en contribution les premieres composante afin d'etre plus précis lors de nos analyse.
+
+#### Transformation par racines carrée
+On effectue la transformation ”double centrage” sur les données transformées par racine carrée afin de voir si on peut faire gagner en contribution les premières composantes afin d'être plus précis lors de nos analyses.
 ```{r}
-data_bis3 <- sqrt(data_bis[,-15])
+data_bis3 <- sqrt(data_bis[,c(-4:-1,-19)])
 data_bis3 <- t(scale(t(data_bis3)))
 res3 <- PCA(data_bis3, graph=FALSE)
-barplot(res3$eig[,2], col=rainbow(n=14,alpha=0.6,start=0.66,end=1),main="Contribution de chaque composante\n(Données transformée par racine carrée)", ylab="Contribution en %")
+barplot(res3$eig[,2], col=rainbow(n=14,alpha=0.6,start=0.66,end=1),main="Pourcentage d'intertie expliquée par chaque axe\n(Données transformées par racine carrée)", ylab="Contribution en %")
+lines(seq(0.75,16.3,(16.3-0.75)/13),res3$eig[,2],type="b")
+text(seq(0.75,16.3,(16.3-0.75)/13),res3$eig[,2]-1, paste(round(res3$eig[,2],2),"%"), cex=0.7)
 ```
+Les transformations ne nous ont pas fait gagner plus d'informations au niveau des 2 premiers axes, on s'arrête là pour l'ACP.
+
+### Conclusion ACP
+
+Ici on a pu étudier l'impacte des variable quantitative sur la satisfaction des gens pour un trajet en avion.
+Il en est ressorti que les services proposés dans l'avion et le confort à bord sont un aspect primordial pour la satisfaction des voyageurs.
