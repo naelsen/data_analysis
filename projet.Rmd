@@ -22,23 +22,45 @@ library(rmarkdown)
 On voit que les deux premières colonnes (X & id) sont inutiles pour nos analyses, on va donc les supprimer
 ```{r}
 data <- read.csv("data/train.csv") 
+data <- data[!rowMeans(is.na(data)*1) > 0,] # On supprime les lignes ou il y a des valeurs manquantes
 str(data)
 ```
 
 ```{r}
 # On retire les colonnes inutiles
 data <- data[,c(-1,-2)]
+# On garde les 5000 premieres lignes
+data <- data[1:5000,]
 # On modifie les noms des colonnes pour le style ;-)
 row.names(data) <- paste("n°", sep="", 1:dim(data)[1]) 
 # On renomme les colonnes pour avoir des noms moins longs (Utile pour l'affichage)
 colnames(data) <- c("Genre", "Fidélité", "Age", "Type.du.vol", "Classe", "Distance", "Wifi", "Horaire.pratique", "Facilité.resevation", "Emplacement.porte", "Nourriture", "Enregistrement.en.ligne", "Siege.confort", "Loisir", "On.board.service", "Espace.jambe", "Gestion.bagage", "Checkin.service", "Inflight.service", "Propreté", "Retard.depart", "Retard.arrivé", "Satisfaction")
-str(data)
 ```
 
 Petit avant gout des données :
 ```{r}
 paged_table(data)
 ```
+
+* Les femmes sont autant présentes que les hommes (en haut à gauche)
+* Il y a plus de personnes qui voyagent pour une raison professionnelle que personnelle (en haut à droite)
+* Il y a plus de loyal customer que de non loyal (en bas à gauche)
+* Les voyageurs en classe Éco Plus representent une petite partie, quant aux classes business et éco ils representent un peu moins de la moitié du vol (en bas à droite)
+* Pour finir un peu plus de voyageur sont neutres ou ne sont pas satisfaits de leur voyage que satisfait (au milieu)
+
+```{r}
+par(fig=c(0,1/2,1/2,1))
+pie(table(data$Genre), col = c("pink","blue"),cex=0.8)
+par(fig=c(0,1/2,0,1/2),new=TRUE)
+pie(table(data$Fidélité), col = c("red","green"),cex=0.8)
+par(fig=c(1/2,1,1/2,1),new=TRUE)
+pie(table(data$Type.du.vol), col = rainbow(2), cex=0.8)
+par(fig=c(1/2,1,0,1/2),new=TRUE)
+pie(table(data$Classe), col = rainbow(3),cex=0.8)
+par(fig=c(1/3-1/5,2/3+1/5,1/3-1/5,2/3+1/5),new=TRUE)
+pie(table(data$Satisfaction), col=c("red","green"), cex=0.8)
+```
+
 Les notes sont assez homogènes, elles ont toutes :
 
 * Un 1er quartile égal à 2 ou 3
@@ -47,14 +69,32 @@ Les notes sont assez homogènes, elles ont toutes :
 
 * Un 3-ème quartile égale à 4 ou 5.
 
-* Les moyennes pour les notes vont de 2.73 à 3.64.
-
-* On peut aussi observer les autres variables mais elles ne seront pas importantes pour la mise en oeuvre de l'ACP
+* Les moyennes pour les notes vont de 2.74 à 3.65.
 
 ```{r}
-summary(data)
+summary(data[,7:20])
 ```
+On peut aussi observer les autres variables quantitatives :
+
+* L'Âge est une donnée qui à vu d'oeil est très probablement Gaussienne centrée autour de 40
+* La variable distance est une donnée qui parrait assez équlibrée
+* Pour les retards il y a énormement de données abérrantes
+
+```{r}
+par(mfrow=c(2,2))
+boxplot(data$Age, main="Âge")
+boxplot(data$Distance, main="Distance")
+boxplot(data$Retard.depart, main="Retard depart")
+boxplot(data$Retard.arrivé, main="Retard arrivée")
+```
+
+
+
 # Analyse des données
+
+## Test paramétrique
+
+
 
 ## ACP
 
@@ -64,13 +104,10 @@ On ne prend que les 5000 premières lignes car le data set est trop gros (+100 0
 
 ```{r}
 # On récupère Âge/Distance du vol/Retard Depart/Retard Arrivé (colonne 3/6/21/22), les notes (colonnes 7 à 20) et la satisfaction (colonne 23)
-data_bis <- data[1:5000,c(3,6,21,22,7:20,23)]
+data_bis <- data[,c(3,6,21,22,7:20,23)]
 res <- PCA(data_bis, quanti.sup=1:4, quali.sup=19, graph=FALSE)
 ```
-On revient sur nos données pour voir s'il n'y a pas eu de changement trop brutal :
-```{r}
-summary(data_bis)
-```
+
 Les individus ou variables peuvent être proches dans le plan mais eloignés dans l'espace s'ils sont mal représentés dans le plan.
 Ainsi, il est important d'expliquer les individus avec des variables bien representées dans le plan.
 Pour cela on veillera à ne pas prendre les variables et individus ayant un cos2 trop bas. Ici on choisit un cos2 égale à 0.58 afin qu'il ne soit pas trop bas et qu'on ait au moins 4 variables à utiliser afin d'expliquer nos individus sur les axes 1 et 2.
@@ -101,7 +138,7 @@ sum((res$ind$contrib[,1] > 0.1)*1)
 ```
 
 On peut voir premièrement que les 3 premiers axes expliquent bien l'inertie sur les données. 
-Les axes étant orthogonaux, les axes 1 et 2 prennent en compte 26.99% + 16.90% = 43.89% du jeu de données expliquent 44.56% de l'inertie.
+Les axes étant orthogonaux, les axes 1 et 2 prennent en compte 27.01% + 16.87% = 43.88% du jeu de données expliquent 44.56% de l'inertie.
 On peut aussi voir que l'axe 2 et 3 expliquent à peu près autant l'un que l'autre l'inertie, ainsi on pourra aussi visualiser les données projetées sur le plan formé par l'axe 1 et 3 (même 2 et 3).
 ```{r}
 barplot(res$eig[,2], col=rainbow(n=14,alpha=0.6,start=0,end=0.33),main="Pourcentage d'inertie expliquée par chaque axe", ylab="Contribution en %")
@@ -133,7 +170,7 @@ plot(res, select="cos2 0.6", choix="varcor", axes = c(2,3))
 ```
 Il n'y a pas grand-chose à interpréter car le barycentre des voyageurs satisfaits et non satisfaits sont tout les 2 proches du centre de gravité de ce plan.
 ```{r}
-plot(res, choix="ind", axes = c(2,3))
+plot(res, invisible="ind",choix="ind", axes = c(2,3))
 ```
 
 ### Transformations & double centrage
@@ -173,34 +210,60 @@ Il en est ressorti que les services proposés dans l'avion et le confort à bord
 ## ACM
 
 ```{r}
-data_bis <- data[1:5000,c(1,2,4,5,23)]
-data_bis
-res.mca <-MCA(data_bis, quali.sup = 5)
+data_bis <- data[,c(1,2,4,5,23)]
+paged_table(data_bis)
 ```
 
 
-
 ```{r}
-#plot(res.mca, choix = "ind", habillage = 5)
-par(fig = c(0.1,0.7,0.3,0.9))
-#par(mfrow = c(1,2))
-barplot(res.mca$var$contrib[,1], las = 2, cex.names = 0.64, 
-        col=rainbow(n=9,alpha=0.6,start=0,end=0.5),
-        main = "Contribution des modalités pour l'axe 1",  cex.main = 1)
-par(fig = c(0.8,1,0,1), new = TRUE)
-barplot(res.mca$var$contrib[,2], las = 2, cex.names = 0.64,
-        col=rainbow(n=9,alpha=0.6,start=0.5,end=1),
-        main = "Contribution des modalités pour l'axe 2", cex.main = 1)
-par(fig = c(0.1,0.17,0.6,0.25), new = TRUE)
-barplot(res.mca$eig[,2])
+res.mca <-MCA(data_bis, quali.sup = 5, graph=FALSE)
 ```
 
-```{r}
-barplot(res.mca$eig[,2])
-```
+
+D'abbord on peut observer que la première dimension influe à un peu plus de 30% quant à la 2, 3, 4 elles influent toutes autour de 20%.
+Il sera donc surement nécessaire de s'intéresser à ces 4 dimensions.
 
 ```{r}
-library(factoextra)
-fviz_mca_biplot (res.mca, repel = TRUE, ggtheme = theme_minimal())
+barplot(res.mca$eig[,2], col=rainbow(5))
+```
+
+
+```{r}
+par(mfrow = c(2,2))
+for(i in 1:4){
+  barplot(res.mca$var$cos2[,i], las = 2, cex.names = 0.64, 
+          col=rainbow(n=9,alpha=0.6,start=(i-1)/4,end=i/4),
+          main=paste("Cos2 des modalités pour l'axe",i))
+}
+```
+En se referent aux cos2 (cos2 > 0.7) des barplots précédents : 
+
+L'axe 1 oppose les passagers qui voyagent pour le business et les passagers qui voyagent pour un motif personnel. Ceux qui voyagent pour le travail sont en général plus satisfaits et ceux qui voyagent pour un motif personnel sont en général sans avis ou insatisfaits.
+L'axe 2 oppose les passagers loyaux aux non loyaux, il en résulte que le passagers non loyaux sont plus souvent insatisfaits et que les passagers loyaux.
+Les 2 axes prennent aussi en compte a eux deux les voyageurs qui voyagent en business et en éco.
+On peut voir que les voyageurs en éco sont plus souvent insatisfait de leur voyage que ceux en business classe.
+
+```{r}
+plot(res.mca, invisible="ind", axes=c(1,2))
+```
+
+En se referent aux cos2 (cos2 > 0.7) pour l'axe 3 des barplots précédents : 
+
+On peut voir que l'axe 3 oppose les personnes de sexe different, on ne peut pas dire grand-chose quant à l'influence sur la satisfaction du client, on pourrait peut-être dire que les femmes sont un peu moins satisfaites mais c'est à vérifier.
+
+```{r}
+plot(res.mca, invisible="ind", axes=c(1,3))
+```
+
+En vérifiant on peut donc voir que les voyageuses sont un petit peu moins souvent satisfaites que les voyageurs.
+```{r}
+table(data_bis$Genre, data_bis$Satisfaction)/rowSums(table(data_bis$Genre, data_bis$Satisfaction))
+```
+
+Pour prendre en compte les voyageurs classe éco plus on visualise sur le plan formé par l'axe 3 et 4
+
+On peut voir ici que les voyageurs en classe Éco Plus sont moins satisfaits de leur voyages, ils sont très excentrés car ils représentes des données inhabituelles.
+```{r}
+plot(res.mca, invisible="ind", axes=c(3,4))
 ```
 
