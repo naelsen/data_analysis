@@ -19,7 +19,7 @@ library(rmarkdown)
 
 # Introduction des données
 
-On voit que les deux premières colonnes (X & id) sont inutiles pour nos analyses, on va donc les supprimer
+On voit que les deux premières colonnes (X & id) sont inutiles pour nos analyses, on va donc les supprimer.
 ```{r}
 data <- read.csv("data/train.csv") 
 data <- data[!rowMeans(is.na(data)*1) > 0,] # On supprime les lignes ou il y a des valeurs manquantes
@@ -31,7 +31,7 @@ str(data)
 data <- data[,c(-1,-2)]
 # On garde les 5000 premieres lignes
 data <- data[1:5000,]
-# On modifie les noms des colonnes pour le style ;-)
+# On modifie les noms des lignes pour le style ;-)
 row.names(data) <- paste("n°", sep="", 1:dim(data)[1]) 
 # On renomme les colonnes pour avoir des noms moins longs (Utile pour l'affichage)
 colnames(data) <- c("Genre", "Fidélité", "Age", "Type.du.vol", "Classe", "Distance", "Wifi", "Horaire.pratique", "Facilité.resevation", "Emplacement.porte", "Nourriture", "Enregistrement.en.ligne", "Siege.confort", "Loisir", "On.board.service", "Espace.jambe", "Gestion.bagage", "Checkin.service", "Inflight.service", "Propreté", "Retard.depart", "Retard.arrivé", "Satisfaction")
@@ -94,6 +94,9 @@ boxplot(data$Retard.arrivé, main="Retard arrivée")
 
 ## Test paramétrique
 
+```{r}
+
+```
 
 
 ## ACP
@@ -266,4 +269,34 @@ On peut voir ici que les voyageurs en classe Éco Plus sont moins satisfaits de 
 ```{r}
 plot(res.mca, invisible="ind", axes=c(3,4))
 ```
+### Conclusion
+
+D'après l'ACM :
+
+* Si un passager voyage pour des raisons personnelles, il a moins de chance d'être satisfait du vol qu'un passager qui voyage pour le business.
+
+* Si le passager est un client fidèle (Loyal custommer) il a plus de chance d'être satisfait du vol qu'un passager qui est déloyal (Disloyal custommer).
+
+* Si un voyageur est en classe business, cela influera positivement sur sa satisfaction, alors que s'il est en classe Eco cela influera négativement. Les passagers Éco plus sont particuliers, mais le fait d'être en classe Éco plus influe négativement sur leur satisfaction.
+
+* Le sexe de l'individu n'a pas l'air d'influer significativement sur la satisfaction, mais on peut faire l'hypothèse que les femmes sont moins satisfaites que les hommes.
+
+## Anova
+
+Nous allons à présent nous pencher sur la corrélation entre les différentes variables. En observant
+
+```{r}
+data_bis = data[,7:20]
+mean_notes <-rowMeans(data_bis)
+
+data[1:20,23]
+plot(mean_notes[1:20])
+boxplot( data_bis$Nourriture ~ data_bis$Gestion.bagage)
+points(tapply(data_bis$Nourriture, data_bis$Gestion.bagage ,mean), col = 'red')
+res = lm(formula =  data_bis$Wifi ~ data_bis$Propreté)
+summary(res)
+anova(res)
+```
+
+
 
