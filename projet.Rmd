@@ -22,7 +22,8 @@ library(rmarkdown)
 On voit que les deux premières colonnes (X & id) sont inutiles pour nos analyses, on va donc les supprimer.
 ```{r}
 data <- read.csv("data/train.csv") 
-data <- data[!rowMeans(is.na(data)*1) > 0,] # On supprime les lignes ou il y a des valeurs manquantes
+# On supprime les lignes ou il y a des valeurs manquantes
+data <- data[!rowMeans(is.na(data)*1) > 0,] 
 str(data)
 ```
 
@@ -38,7 +39,7 @@ colnames(data) <- c("Genre", "Fidélité", "Age", "Type.du.vol", "Classe", "Dist
 ```
 
 Petit avant gout des données :
-```{r}
+```{r,echo=FALSE}
 paged_table(data)
 ```
 
@@ -48,7 +49,7 @@ paged_table(data)
 * Les voyageurs en classe Éco Plus representent une petite partie, quant aux classes business et éco ils representent un peu moins de la moitié du vol (en bas à droite)
 * Pour finir un peu plus de voyageur sont neutres ou ne sont pas satisfaits de leur voyage que satisfait (au milieu)
 
-```{r}
+```{r,echo=FALSE}
 par(fig=c(0,1/2,1/2,1))
 pie(table(data$Genre), col = c("pink","blue"),cex=0.8)
 par(fig=c(0,1/2,0,1/2),new=TRUE)
@@ -71,7 +72,7 @@ Les notes sont assez homogènes, elles ont toutes :
 
 * Les moyennes pour les notes vont de 2.74 à 3.65.
 
-```{r}
+```{r,echo=FALSE}
 summary(data[,7:20])
 ```
 On peut aussi observer les autres variables quantitatives :
@@ -80,7 +81,7 @@ On peut aussi observer les autres variables quantitatives :
 * La variable distance est une donnée qui parrait assez équlibrée
 * Pour les retards il y a énormement de données abérrantes
 
-```{r}
+```{r,echo=FALSE}
 par(mfrow=c(2,2))
 boxplot(data$Age, main="Âge")
 boxplot(data$Distance, main="Distance")
@@ -91,13 +92,6 @@ boxplot(data$Retard.arrivé, main="Retard arrivée")
 
 
 # Analyse des données
-
-## Test paramétrique
-
-```{r}
-
-```
-
 
 ## ACP
 
@@ -111,39 +105,48 @@ data_bis <- data[,c(3,6,21,22,7:20,23)]
 res <- PCA(data_bis, quanti.sup=1:4, quali.sup=19, graph=FALSE)
 ```
 
-Les individus ou variables peuvent être proches dans le plan mais eloignés dans l'espace s'ils sont mal représentés dans le plan.
-Ainsi, il est important d'expliquer les individus avec des variables bien representées dans le plan.
-Pour cela on veillera à ne pas prendre les variables et individus ayant un cos2 trop bas. Ici on choisit un cos2 égale à 0.58 afin qu'il ne soit pas trop bas et qu'on ait au moins 4 variables à utiliser afin d'expliquer nos individus sur les axes 1 et 2.
+**Lors d'une ACP les individus ou variables peuvent être proches dans le plan mais eloignés dans l'espace s'ils sont mal représentés dans le plan. Ainsi, il est important d'expliquer les individus avec des variables bien representées dans le plan.**
 
-Ici l'axe 1 va faire le contraste entre le confort à bord (droite) et l'inconfort (gauche), tandis que l'axe 2 fera le contraste entre les aspects techniques pour ce qui concerne le vol.
+Pour cela on veillera à ne pas prendre les variables et individus ayant un cos2 trop bas. Ici on choisit un cos2 égale à 0.58 (qui n'est pas si haut au que ca en effet) afin d'avoir au moins 4 variables à utiliser, on pourra donc expliquer nos individus sur les axes 1 et 2 correctement.
 
-Les variables quantitatives supplémentaires ne sont pas du tout interprétables
+Ici l'axe 1 va opposer le confort à bord (à droite) et l'inconfort (à gauche), tandis que l'axe 2 fera le contraste entre les aspects techniques en ce qui concerne le vol.
+
+Les variables quantitatives supplémentaires ne sont pas du tout interprétables.
 ```{r}
 plot(res,select="cos2 0.58", choix="varcor")
 ```
 
 
-On peut voir une nette séparation entre les individus satisfaits et non satisfaits. Les individus satisfaits sont ceux s'étant amusé et ayant trouvé l'avion propre. À l'inverse les individus non satisfaits ont octroyé des notes plus basses concernant la propreté et les loisirs. On ne peut pas vraiment dire pour l'instant si la facilité de réservation et le wifi à bord influent sur la satisfaction du passager.
-Ici par exemple l'individu n°2995 est satisfait, or il a mal noté les loisirs, la propreté, le wifi et la facilité de réservation. Sa satisfaction est probablement influencé par d'autres variables, qui sont qualitatives. On se penchera sur ce sujet lors de l'ACM. 
+Ci-dessous, on peut voir une nette séparation entre les individus satisfaits et insatisfaits/neutre. Les individus satisfaits sont ceux s'étant amusé et ayant trouvé l'avion propre (on les retrouve à droite sur le graph). À l'inverse les individus insatisfaits/neutre ont octroyé des notes plus basses concernant la propreté et les loisirs (on les retrouve à gauche sur le graph). On ne peut pas vraiment dire pour l'instant si la facilité de réservation et le wifi à bord influent sur la satisfaction du passager, en effet on ne retrouve pas de séparation entre les individus satisfaits et insatisfaits par rapport à l'axe 2.
+
+Ici par exemple l'individu n°3122 est satisfait, or il a mal noté les loisirs, la propreté, le wifi et la facilité de réservation.
+
+Sa satisfaction est probablement influencé par d'autres variables, qui sont qualitatives. On se penchera sur ce sujet lors de l'ACM. 
 
 ```{r}
 plot(res,habillage=19, select="cos2 0.58", choix="ind",cex = 0.6)
 ```
 
 L'individu qui contribue le plus à l'axe 1 y contribue à 0.15%.
-
-Il y a 40 individus qui y contribuent pour plus de 0.1%
-
-On n'a pas d'individus atypiques, ce qui est normal car nos données sont des notes entre 0 et 5 et on a vu qu'elles étaient assez homogènes
 ```{r}
 max(res$ind$contrib[,1])
+```
+
+Il y a 40 individus qui y contribuent pour plus de 0.1%
+```{r}
 sum((res$ind$contrib[,1] > 0.1)*1)
 ```
 
-On peut voir premièrement que les 3 premiers axes expliquent bien l'inertie sur les données. 
-Les axes étant orthogonaux, les axes 1 et 2 prennent en compte 27.01% + 16.87% = 43.88% du jeu de données expliquent 44.56% de l'inertie.
-On peut aussi voir que l'axe 2 et 3 expliquent à peu près autant l'un que l'autre l'inertie, ainsi on pourra aussi visualiser les données projetées sur le plan formé par l'axe 1 et 3 (même 2 et 3).
-```{r}
+On n'a pas d'individus atypiques, ce qui est normal car nos données sont des notes entre 0 et 5 et on a vu qu'elles étaient assez homogènes
+
+***
+Les axes étant orthogonaux, les axes 1,2 et 3 prennent en compte 27.01% + 16.87% + 15.62% = 59.5%.
+
+Ainsi avec le graphique ci-dessous on peut voir que les 3 premiers axes expliquent 59.5% de l'inertie sur les données. On peut s'en contenter, car avec une composante en plus, on ne gagne que très peu d'information pour la complexité d'exploitation des données que ça représente.
+
+L'axe 2 et 3 expliquent à peu près autant l'un que l'autre l'inertie, ainsi on pourra visualiser les données projetées sur le plan formé par les axes 1,2 et 1,3 (On pourra aussi tester de visualiser les données projetés sur le plan formé par les axes 2,3).
+
+```{r, echo=FALSE}
 barplot(res$eig[,2], col=rainbow(n=14,alpha=0.6,start=0,end=0.33),main="Pourcentage d'inertie expliquée par chaque axe", ylab="Contribution en %")
 lines(seq(0.75,16.3,(16.3-0.75)/13),res$eig[,2],type="b", xlim=c(0,max(res$eig[,2])+10))
 text(seq(0.75,16.3,(16.3-0.75)/13),res$eig[,2]-1, paste(round(res$eig[,2],2),"%"), cex=0.7)
@@ -162,15 +165,26 @@ On a un nouveau cercle de corrélation, ici on voit que :
 plot(res, select="cos2 0.58", choix="varcor", axes = c(1,3))
 ```
 
-Les passagers sont en général plus satisfait quand ils se sont amusé (loisirs), que le service était agréable(Gestion bagage, Inflight.service, On.board.service) et qu'ils ont passé un vol confortable (Siege.confort, nourriture, propreté), et inversement pour les passagers non satisfaits.
+Avec le graph des individus ci-dessous, on peut voir que les passagers sont en général plus satisfaits 
+Avec le graph des individus ci-dessous, on peut voir que :
+
+* Les loisirs à bord
+* Un service (Gestion bagage, Inflight.service, On.board.service) de qualité
+* Le confort lors du trajet (Siege.confort, nourriture, propreté)
+
+influent sur la satisfaction du client positivement.
+
+Inversement pour les passagers non satisfaits/neutres.
+
 ```{r}
 plot(res, habillage=19, select="cos2 0.58", choix="ind", axes = c(1,3))
 ```
 
-Ici on a le cercle de corrélation avec l'axe 2 et 3:
+Ci-dessous on a le cercle de corrélation avec l'axe 2 et 3:
 ```{r}
 plot(res, select="cos2 0.6", choix="varcor", axes = c(2,3))
 ```
+
 Il n'y a pas grand-chose à interpréter car le barycentre des voyageurs satisfaits et non satisfaits sont tout les 2 proches du centre de gravité de ce plan.
 ```{r}
 plot(res, invisible="ind",choix="ind", axes = c(2,3))
@@ -178,7 +192,7 @@ plot(res, invisible="ind",choix="ind", axes = c(2,3))
 
 ### Transformations & double centrage
 
-Certains passagers ont attribué comme notes 0 pour certaines catégories du vol, on décide de ne pas faire de transformation par l'inverse car $\frac{1}{0}$ est un quotient indéterminé 
+Certains passagers ont attribué comme notes 0 pour certaines catégories du vol, on décide de ne pas faire de transformation par l'inverse car $\frac{1}{0}$ est un quotient indéterminé.
 
 #### Log-transformation
 On effectue la transformation ”double centrage” sur les données log-transformées afin de voir si on peut faire gagner en contribution les premières composantes afin d'être plus précis lors de nos analyses.
@@ -202,17 +216,22 @@ lines(seq(0.75,16.3,(16.3-0.75)/13),res3$eig[,2],type="b")
 text(seq(0.75,16.3,(16.3-0.75)/13),res3$eig[,2]-1, paste(round(res3$eig[,2],2),"%"), cex=0.7)
 ```
 
-Les transformations ne nous ont pas fait gagner plus d'informations au niveau des 2 premiers axes, on s'arrête là pour l'ACP.
+Les transformations nous font perde de l'information pour le premier axe, on en gagne pour le deuxième. Le reste de l'inertie se répartie au niveau de l'axe 3 à 13. On préfère donc garder une ACP sur les données non transformées, ni double centrées car on avait plus d'inforation sur les 3 premiers axes.
 
 ### Conclusion ACP
 
-Ici on a pu étudier l'impacte des variable quantitative sur la satisfaction des gens pour un trajet en avion.
+Ici on a pu étudier l'impact des notes accordées par les clients (variables quantitatives) sur leur satisfaction concernant le trajet.
+
 Il en est ressorti que les services proposés dans l'avion et le confort à bord sont des aspects primordiaux pour la satisfaction des voyageurs.
 
 
 ## ACM
 
-```{r}
+Intéressons nous maintenant à savoir si le "profil" des clients (données qualitatives) influe sur leur satisfaction.
+
+On donnes ci-dessous le tableau des variables qualitatives que nous allons étudier :
+
+```{r, echo=FALSE}
 data_bis <- data[,c(1,2,4,5,23)]
 paged_table(data_bis)
 ```
@@ -223,15 +242,17 @@ res.mca <-MCA(data_bis, quali.sup = 5, graph=FALSE)
 ```
 
 
-D'abbord on peut observer que la première dimension influe à un peu plus de 30% quant à la 2, 3, 4 elles influent toutes autour de 20%.
+On peut observer que la première dimension influe à un peu plus de 30%, quant à la 2, 3, 4 elles influent toutes autour de 20%.
+
 Il sera donc surement nécessaire de s'intéresser à ces 4 dimensions.
 
-```{r}
+```{r, echo=FALSE}
 barplot(res.mca$eig[,2], col=rainbow(5))
 ```
 
+Voici ci-dessous les cos2 de nos modalités sur chacun des 4 premiers axes.
 
-```{r}
+```{r,echo=FALSE}
 par(mfrow = c(2,2))
 for(i in 1:4){
   barplot(res.mca$var$cos2[,i], las = 2, cex.names = 0.64, 
@@ -239,12 +260,14 @@ for(i in 1:4){
           main=paste("Cos2 des modalités pour l'axe",i))
 }
 ```
-En se referent aux cos2 (cos2 > 0.7) des barplots précédents : 
 
-L'axe 1 oppose les passagers qui voyagent pour le business et les passagers qui voyagent pour un motif personnel. Ceux qui voyagent pour le travail sont en général plus satisfaits et ceux qui voyagent pour un motif personnel sont en général sans avis ou insatisfaits.
-L'axe 2 oppose les passagers loyaux aux non loyaux, il en résulte que le passagers non loyaux sont plus souvent insatisfaits et que les passagers loyaux.
-Les 2 axes prennent aussi en compte a eux deux les voyageurs qui voyagent en business et en éco.
-On peut voir que les voyageurs en éco sont plus souvent insatisfait de leur voyage que ceux en business classe.
+En se référent aux cos2 des barplots précédents , on interprete ceux qui ont un cos2>0.7 sur le plan formé par les axes 1 et 2. 
+
+L'axe 1 oppose les passagers qui voyagent pour le business et les passagers qui voyagent pour un motif personnel. Ceux qui voyagent pour le travail sont en général plus satisfaits que ceux qui voyagent pour un motif personnel.
+
+L'axe 2 oppose les passagers loyaux aux non loyaux, il en résulte que les passagers non loyaux sont plus souvent insatisfaits que les passagers loyaux.
+
+Les deux axes prennent aussi en compte à eux deux les voyageurs en classe business et éco. On peut voir que les voyageurs en classe éco sont plus souvent insatisfait de leur voyage que ceux en business classe.
 
 ```{r}
 plot(res.mca, invisible="ind", axes=c(1,2))
@@ -259,8 +282,12 @@ plot(res.mca, invisible="ind", axes=c(1,3))
 ```
 
 En vérifiant on peut donc voir que les voyageuses sont un petit peu moins souvent satisfaites que les voyageurs.
-```{r}
+```{r, echo=FALSE}
 table(data_bis$Genre, data_bis$Satisfaction)/rowSums(table(data_bis$Genre, data_bis$Satisfaction))
+```
+
+```{r}
+chisq.test(table(data_bis$Genre, data_bis$Satisfaction)/rowSums(table(data_bis$Genre, data_bis$Satisfaction)))
 ```
 
 Pour prendre en compte les voyageurs classe éco plus on visualise sur le plan formé par l'axe 3 et 4
