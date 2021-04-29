@@ -382,42 +382,45 @@ D'après l'ACM :
 
 ## Clustering 
 
+```{r}
+change_age <- function(x){
+  if(7 < x && x <= 17)
+    return("7-17")
+  else if(17 < x && x <= 25)
+    return("18-25")
+  else if(25 < x && x <= 39)
+    return("26-39")
+  else if(39 < x && x <= 59)
+    return("40-59")
+  else
+    return("60+")
+}
+
+data.qual = data[,1:5]
+data.qual$Age = paste(lapply(data.qual$Age,change_age))
+profils = data.frame(table(data.qual))
+profils = profils[profils[,6]>0,]
+profils = paste(profils[,1],profils[,2],profils[,3],profils[,4],profils[,5],sep="/")
+data_df = data[,7:20]
+col_name = colnames(data_df)
+data_df = cbind(data_df,paste(data.qual[,1],data.qual[,2],data.qual[,3],data.qual[,4],data.qual[,5],sep="/"))
+colnames(data_df) = c(col_name,"profil")
+data_df=aggregate.data.frame(x=data_df[-15], by=list(data_df$profil), FUN=mean)
+```
+
+```{r}
+data_df.dist = dist(data_df[,-1])
+```
+
 
 Nous allons maintenant tenter de regrouper les individus par groupes en utilisant les différentes méthodes de clusterig. Il n'y aura pas grand intérêt à les réaliser sur l'ensemble des individus, nous allons donc modifier le jeu de données afin d'analyser les données en fonction des "profils" d'individus. On pourra de cette manière déterminer quels sont les profils les plus proches en terme de notation, et de satisfaction
 
-On définit alors plusieurs profils : 
+On définit alors 95 profils : 
 
-* Homme - Loyal - Personnel - Eco Plus
-* Homme - Loyal - Personnel - Eco
-* Homme - Loyal - Personnel - Business
-
-* Homme - Loyal - Business - Eco Plus
-* Homme - Loyal - Business - Eco
-* Homme - Loyal - Business - Business
-
-* Homme - Non Loyal - Personnel - Eco Plus
-* Homme - Non Loyal - Personnel - Eco
-* Homme - Non Loyal - Personnel - Business
-
-* Homme - Non Loyal - Business - Eco Plus
-* Homme - Non Loyal - Business - Eco
-* Homme - Non Loyal - Business - Business
-
-* Femme - Loyal - Personnel - Eco Plus
-* Femme - Loyal - Personnel - Eco
-* Femme - Loyal - Personnel - Business
-                   
-* Femme - Loyal - Business - Eco Plus
-* Femme - Loyal - Business - Eco
-* Femme - Loyal - Business - Business
-
-* Femme - Non Loyal - Personnel - Eco Plus
-* Femme - Non Loyal - Personnel - Eco
-* Femme - Non Loyal - Personnel - Business
-              
-* Femme - Non Loyal - Business - Eco Plus
-* Femme - Non Loyal - Business - Eco
-* Femme - Non Loyal - Business - Business
+```{r}
+paged_table(df)
+profils
+```
 
 On décrit donc 24 profils possibles:
 
@@ -427,7 +430,7 @@ data.quant <- cbind(data.quant, rowMeans(data.quant))
 colnames(data.quant) = c(colnames(data.quant)[1:14],"Moyenne")
 data.qual <- data[,c(1,2,4,5,23)]
 head(data.qual)
-data_count_1 <- aggregate(data.quant[,14] ~ data.qual$Fidélité , data, mean)
+data_count_1 <- aggregate(data.quant[,2] ~ data.qual , data, mean)
 data_count_1
 ```
 
@@ -443,25 +446,6 @@ rect.hclust(hc, k = 20)
 
 ```
 
--
--
--
-## Anova
-
-Nous allons à présent nous pencher sur la corrélation entre les différentes variables. En observant
-
-```{r}
-data_bis = data[,7:20]
-mean_notes <-rowMeans(data_bis)
-
-data[1:20,23]
-plot(mean_notes[1:20])
-boxplot( data_bis$Nourriture ~ data_bis$Gestion.bagage)
-points(tapply(data_bis$Nourriture, data_bis$Gestion.bagage ,mean), col = 'red')
-res = lm(formula =  data_bis$Wifi ~ data_bis$Propreté)
-summary(res)
-anova(res)
-```
 
 
 
