@@ -301,7 +301,7 @@ paged_table(data[3297,])
 ```
 
 
-### Conclusion
+### Conclusion ACM
 
 D'après l'ACM :
 
@@ -313,6 +313,78 @@ D'après l'ACM :
 
 * Le sexe de l'individu n'a pas l'air d'influer significativement sur la satisfaction, mais on peut faire l'hypothèse que les femmes sont moins satisfaites que les hommes.
 
+
+
+
+
+
+## Clustering 
+
+Nous allons maintenant tenter de regrouper les individus par groupes en utilisant les différentes méthodes de clusterig. Il n'y aura pas grand intérêt à les réaliser sur l'ensemble des individus, nous allons donc modifier le jeu de données afin d'analyser les données en fonction des "profils" d'individus. On pourra de cette manière déterminer quels sont les profils les plus proches en terme de notation, et de satisfaction
+
+On définit alors plusieurs profils : 
+
+* Homme - Loyal - Personnel - Eco Plus
+* Homme - Loyal - Personnel - Eco
+* Homme - Loyal - Personnel - Business
+
+* Homme - Loyal - Business - Eco Plus
+* Homme - Loyal - Business - Eco
+* Homme - Loyal - Business - Business
+
+* Homme - Non Loyal - Personnel - Eco Plus
+* Homme - Non Loyal - Personnel - Eco
+* Homme - Non Loyal - Personnel - Business
+
+* Homme - Non Loyal - Business - Eco Plus
+* Homme - Non Loyal - Business - Eco
+* Homme - Non Loyal - Business - Business
+
+
+* Femme - Loyal - Personnel - Eco Plus
+* Femme - Loyal - Personnel - Eco
+* Femme - Loyal - Personnel - Business
+                   
+* Femme - Loyal - Business - Eco Plus
+* Femme - Loyal - Business - Eco
+* Femme - Loyal - Business - Business
+
+* Femme - Non Loyal - Personnel - Eco Plus
+* Femme - Non Loyal - Personnel - Eco
+* Femme - Non Loyal - Personnel - Business
+              
+* Femme - Non Loyal - Business - Eco Plus
+* Femme - Non Loyal - Business - Eco
+* Femme - Non Loyal - Business - Business
+
+On décrit donc 24 profils possibles
+
+```{r}
+data.quant <- data[,7:20]
+data.quant <- cbind(data.quant, rowMeans(data.quant))
+colnames(data.quant) = c(colnames(data.quant)[1:14],"Moyenne")
+data.qual <- data[,c(1,2,4,5,23)]
+head(data.qual)
+data_count_1 <- aggregate(data.quant[,14] ~ data.qual$Fidélité , data, mean)
+data_count_1
+```
+
+
+```{r}
+summary(data[,9:20])
+
+res = scale(data[1:500,9:20],center = TRUE,scale = TRUE)
+d.indiv = dist(res)
+#d.indiv
+hc <- hclust(d.indiv)
+plot(hc,cex = 0.1, col=1)
+rect.hclust(hc, k = 20)
+
+```
+
+-
+-
+-
 ## Anova
 
 Nous allons à présent nous pencher sur la corrélation entre les différentes variables. En observant
