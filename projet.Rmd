@@ -24,26 +24,25 @@ library(rmarkdown)
 On voit que les deux premières colonnes (X & id) sont inutiles pour nos analyses, on va donc les supprimer.
 
 ```{r}
-data <- read.csv("data/train.csv") 
-data <- data[!rowMeans(is.na(data)*1) > 0,] # On supprime les lignes ou il y a des valeurs manquantes
-str(data)
+DF <- read.csv("data/train.csv")
+# On supprime les lignes ou il y a des valeurs manquantes
+DF <- DF[!rowMeans(is.na(DF)*1) > 0,]
+str(DF)
 ```
 
 ```{r}
 # On retire les colonnes inutiles
-data <- data[,c(-1,-2)]
-# On garde les 5000 premieres lignes
-data <- data[1:5000,]
+DF <- DF[,c(-1,-2)]
 # On modifie les noms des lignes pour le style ;-)
-row.names(data) <- paste("n°", sep="", 1:dim(data)[1]) 
+row.names(DF) <- paste("n°", sep="", 1:dim(DF)[1]) 
 # On renomme les colonnes pour avoir des noms moins longs (Utile pour l'affichage)
-colnames(data) <- c("Genre", "Fidélité", "Age", "Type.du.vol", "Classe", "Distance", "Wifi", "Horaire.pratique", "Facilité.resevation", "Emplacement.porte", "Nourriture", "Enregistrement.en.ligne", "Siege.confort", "Loisir", "On.board.service", "Espace.jambe", "Gestion.bagage", "Checkin.service", "Inflight.service", "Propreté", "Retard.depart", "Retard.arrivé", "Satisfaction")
+colnames(DF) <- c("Genre", "Fidélité", "Age", "Type.du.vol", "Classe", "Distance", "Wifi", "Horaire.pratique", "Facilité.resevation", "Emplacement.porte", "Nourriture", "Enregistrement.en.ligne", "Siege.confort", "Loisir", "On.board.service", "Espace.jambe", "Gestion.bagage", "Checkin.service", "Inflight.service", "Propreté", "Retard.depart", "Retard.arrivé", "Satisfaction")
 ```
 
 Petit avant gout des données :
 
 ```{r, echo=FALSE}
-paged_table(data)
+paged_table(DF)
 ```
 
 * Les femmes sont autant présentes que les hommes a peu de choses près.
@@ -58,15 +57,15 @@ paged_table(data)
 
 ```{r, echo=FALSE}
 par(fig=c(0,1/2,1/2,1))
-pie(table(data$Genre), col = c("pink","blue"),cex=0.8)
+pie(table(DF$Genre), col = c("pink","blue"),cex=0.8)
 par(fig=c(0,1/2,0,1/2),new=TRUE)
-pie(table(data$Fidélité), col = c("red","green"),cex=0.8)
+pie(table(DF$Fidélité), col = c("red","green"),cex=0.8)
 par(fig=c(1/2,1,1/2,1),new=TRUE)
-pie(table(data$Type.du.vol), col = rainbow(2), cex=0.8)
+pie(table(DF$Type.du.vol), col = rainbow(2), cex=0.8)
 par(fig=c(1/2,1,0,1/2),new=TRUE)
-pie(table(data$Classe), col = rainbow(3),cex=0.8)
+pie(table(DF$Classe), col = rainbow(3),cex=0.8)
 par(fig=c(1/3-1/5,2/3+1/5,1/3-1/5,2/3+1/5),new=TRUE)
-pie(table(data$Satisfaction), col=c("red","green"), cex=0.8)
+pie(table(DF$Satisfaction), col=c("red","green"), cex=0.8)
 ```
 
 Ci-dessous on voit que les notes sont assez homogènes, elles ont toutes :
@@ -77,10 +76,10 @@ Ci-dessous on voit que les notes sont assez homogènes, elles ont toutes :
 
 * Un 3-ème quartile égale à 4 ou 5.
 
-* Les moyennes pour les notes vont de 2.74 à 3.65.
+* Les moyennes pour les notes vont de 2.73 à 3.64.
 
 ```{r, echo=FALSE}
-summary(data[,7:20])
+summary(DF[,7:20])
 ```
 
 On peut aussi observer les autres variables quantitatives :
@@ -93,10 +92,10 @@ On peut aussi observer les autres variables quantitatives :
 
 ```{r,echo=FALSE}
 par(mfrow=c(2,2))
-boxplot(data$Age, main="Âge")
-boxplot(data$Distance, main="Distance")
-boxplot(data$Retard.depart, main="Retard depart")
-boxplot(data$Retard.arrivé, main="Retard arrivée")
+boxplot(DF$Age, main="Âge")
+boxplot(DF$Distance, main="Distance")
+boxplot(DF$Retard.depart, main="Retard depart")
+boxplot(DF$Retard.arrivé, main="Retard arrivée")
 ```
 
 
@@ -110,20 +109,21 @@ On récupère toutes les données quantitatives et la satisfaction.
 
 ```{r}
 # On récupère Âge/Distance du vol/Retard Depart/Retard Arrivé (colonne 3/6/21/22), les notes (colonnes 7 à 20) et la satisfaction (colonne 23)
-data_bis <- data[,c(3,6,21,22,7:20,23)]
-res <- PCA(data_bis, quanti.sup=1:4, quali.sup=19, graph=FALSE)
+DF.tmp <- DF[,c(3,6,21,22,7:20,23)]
+res.pca <- PCA(DF.tmp, quanti.sup=1:4, quali.sup=19, graph=FALSE)
 ```
 
 Il est évident de penser que plus les notes attribuées par les voyageurs sont hautes et plus l'individu a de chance d'être satisfait, on peut le voir avec le graphe ci- dessous. Pour ne pas attribuer trop d'importance aux moyennes des notes des individus qui constitue un petit groupe, on associe un poids qui correspond à la taille du groupe pour chaque moyenne attribuée.
 
 ```{r, echo=FALSE}
-mean_notes <-rowMeans(data[,7:20])
-barplot((table(as.factor(mean_notes),data$Satisfaction)/rowSums(table(as.factor(mean_notes),data$Satisfaction)))[,2],
-        width=rowSums(table(as.factor(mean_notes),data$Satisfaction)),
-        col=rainbow(n=52,alpha=0.7,start=0,end=0.35),
-        main = "Fréquence de satisfaction en fonction de la moyenne des notes",
-        xlab = "Note moyenne",
-        ylab = "Pourcentage d'individus satisfaits")
+mean_notes <-rowMeans(DF[,7:20])
+tmp = table(as.factor(mean_notes),DF$Satisfaction)
+barplot((tmp/rowSums(tmp))[,2],
+         width=rowSums(tmp),
+         col=rainbow(n=52,alpha=0.7,start=0,end=0.35),
+         main = "Fréquence de satisfaction en fonction de la moyenne des notes",
+         xlab = "Note moyenne",
+         ylab = "Pourcentage d'individus satisfaits")
 ```
 
 Ainsi, on va faire notre ACP sur les notes.
@@ -140,7 +140,7 @@ Ici l'axe 1 va faire le contraste entre le confort à bord (droite) et l'inconfo
 Les variables quantitatives supplémentaires ne sont pas du tout interprétables.
 
 ```{r}
-plot(res,select="cos2 0.58", choix="varcor")
+plot(res.pca,select="cos2 0.68", choix="varcor")
 ```
 
 **Lorsque l'angle est proche de 0°, les variables sont fortement corrélés positivement.**
@@ -149,90 +149,98 @@ plot(res,select="cos2 0.58", choix="varcor")
 
 **Lorsque l'angle est proche de 180°, les variables sont fortement corrélés négativement.**
 
-Ainsi, ci-dessus on voit que la facilité de reservation et le wifi sont fortement correlé, ainsi que Loisir et Propreté.
-Propreté et Facilité de reservation ne le sont pas.
+Ainsi, ci-dessus on voit que la facilité de reservation et le wifi sont fortement correlé.
+
+Loisir et Facilité.reservation ne le sont pas, ou très peu.
+
+Loisir et Wifi sont un peu corrélés.
 
 Verifions le :
 
 Graphiquement (Facilité.resevation/Wifi) :
 
 ```{r,echo=FALSE}
-boxplot(data_bis$Facilité.resevation ~ data_bis$Wifi)
-points(tapply(data_bis$Facilité.resevation, data_bis$Wifi, mean), col='red')
+boxplot(DF.tmp$Facilité.resevation ~ DF.tmp$Wifi)
+points(tapply(DF.tmp$Facilité.resevation, DF.tmp$Wifi, mean), col='red')
 ```
 
 Chisq-deux (Facilité.resevation/Wifi) :
 
-On rejette $H_0$ car p-value<0.5 , ainsi on peut affirmer avec un risque de se tromper égal à 5% que ces deux variables ne sont pas corrélés.
+On rejette $H_0$ car p-value<0.5 , ainsi on peut affirmer avec un risque de se tromper égal à 5% que ces deux variables sont corrélés.
 
 ```{r}
-chisq.test(data_bis$Facilité.resevation, data_bis$Wifi, simulate.p.value=TRUE)
+chisq.test(DF.tmp$Facilité.resevation, DF.tmp$Wifi, simulate.p.value=TRUE)
 ```
-
-Graphiquement (Propreté/Loisir) :
-
-```{r,echo=FALSE}
-boxplot(data_bis$Propreté ~ data_bis$Loisir)
-points(tapply(data_bis$Propreté, data_bis$Loisir, mean), col='red')
-```
-
-Chisq-deux (Propreté/Loisir) :
-
-On rejette $H_0$ car p-value<0.5 , ainsi on peut affirmer avec un risque de se tromper égal 5% que ces deux variables ne sont pas corrélés.
-
-```{r}
-chisq.test(data_bis$Propreté, data_bis$Loisir, simulate.p.value=TRUE)
-```
-
-Graphiquement (Propreté/Facilité.reservation) :
-
-```{r,echo=FALSE}
-boxplot(data_bis$Propreté ~ data_bis$Facilité.resevation)
-points(tapply(data_bis$Propreté, data_bis$Facilité.resevation, mean), col='red')
-```
-
-Chisq-deux (Propreté/Facilité.reservation) :
-
-On ne peut pas rejeter $H_0$, ainsi on ne peut pas dire par un test que les deux variables ne sont pas corrélés.
-
-```{r}
-chisq.test(data_bis$Propreté, data_bis$Facilité.resevation)
-```
-
-Ci-dessous on peut voir une nette séparation entre les individus satisfaits et non satisfaits. Les individus satisfaits sont ceux s'étant amusé et ayant trouvé l'avion propre. À l'inverse les individus non satisfaits ont octroyé des notes plus basses concernant la propreté et les loisirs. On ne peut pas vraiment dire pour l'instant si la facilité de réservation et le wifi à bord influent sur la satisfaction du passager.
-Ici par exemple l'individu n°3297 est satisfait, or il a mal noté les loisirs, la propreté, le wifi et la facilité de réservation. Sa satisfaction est probablement influencé par d'autres variables, qui sont qualitatives. On se penchera sur ce sujet lors de l'ACM. 
-
-```{r}
-plot(res,habillage=19, select="cos2 0.8", choix="ind",cex = 0.6)
-```
-
-L'individu qui contribue le plus à l'axe 1 y contribue à 0.15%.
-
-```{r}
-max(res$ind$contrib[,1])
-```
-
-Il y a 40 individus qui y contribuent pour plus de 0.1%.
-
-```{r}
-sum((res$ind$contrib[,1] > 0.1)*1)
-```
-
-Au final y n'y a pas d'individus atypiques, ce qui est normal car nos données sont des notes entre 0 et 5 et on a vu qu'elles étaient assez homogènes.
+Graphiquement on a pu voir qu'un passager donne, en moyenne, des notes égales à Facilité de reservation et Wifi.
 
 ***
 
-On peut voir premièrement que les 3 premiers axes expliquent bien l'inertie sur les données : Les axes étant orthogonaux, les axes 1, 2, 3 expliquent 27.01% + 16.87% + 15.62% = 59.5% de l'inertie.
+Graphiquement (Loisir/Wifi) :
 
-Quant aux axes 1 et 2, ils prennent en compte 27.01% + 16.87% = 43.88% du jeu de données.
+```{r,echo=FALSE}
+boxplot(DF.tmp$Loisir ~ DF.tmp$Wifi)
+points(tapply(DF.tmp$Loisir, DF.tmp$Wifi, mean), col='red')
+```
+
+Chisq-deux (Loisir/Wifi) :
+
+On rejette $H_0$ car p-value<0.5 , ainsi on peut affirmer avec un risque de se tromper égal à 5% que ces deux variables sont corrélés.
+
+```{r}
+chisq.test(DF.tmp$Loisir, DF.tmp$Wifi, simulate.p.value=TRUE)
+```
+
+Graphiquement on a pu voir qu'un passager donne, en moyenne, des notes plus élevées au loisir quand il note bien le Wifi.
+
+***
+
+Graphiquement (Loisir/Facilité.reservation) :
+
+```{r,echo=FALSE}
+boxplot(DF.tmp$Loisir ~ DF.tmp$Facilité.resevation)
+points(tapply(DF.tmp$Loisir, DF.tmp$Facilité.resevation, mean), col='red')
+```
+
+Chisq-deux (Loisir/Facilité.resevartion) :
+
+On rejette $H_0$ car p-value<0.5 , ainsi on peut affirmer avec un risque de se tromper égal à 5% que ces deux variables sontcorrélés.
+
+```{r}
+chisq.test(DF.tmp$Loisir, DF.tmp$Facilité.resevation , simulate.p.value=TRUE)
+```
+
+Loisir et Facilité.reservation sont corrélés, mais on peut voir graphiquement qu'elles ne le sont pas trop, on peut faire l'hypothèse que c'est parce qu'un passager qui met des bonnes notes aura plus tendance à mettre des bonnes notes aux autres catégories, on peut faire le même raisonnemen pour les mauvaises notes.
+
+***
+
+Ci-dessous on peut voir une nette séparation entre les individus satisfaits et non satisfaits. Les individus satisfaits sont ceux s'étant amusé et ayant trouvé l'avion propre. À l'inverse les individus non satisfaits ont octroyé des notes plus basses concernant la propreté et les loisirs. On ne peut pas vraiment dire pour l'instant si la facilité de réservation et le wifi à bord influent sur la satisfaction du passager.
+
+Ici par exemple l'individu n°70657 est satisfait, or il a mal noté les loisirs, la propreté, le wifi et la facilité de réservation. Sa satisfaction est probablement influencé par d'autres variables, qui sont qualitatives. On se penchera sur ce sujet lors de l'ACM. 
+
+```{r}
+plot(res.pca,habillage=19, select="cos2 0.93", choix="ind",cex = 0.8)
+```
+
+L'individu qui contribue le plus à l'axe 1 y contribue à environ 0.01%.
+
+```{r}
+max(res.pca$ind$contrib[,1])
+```
+
+Il n'y a pas d'individus atypiques, ce qui est normal car nos données sont des notes entre 0 et 5 et on a vu qu'elles étaient assez homogènes.
+
+***
+
+On peut voir premièrement que les 3 premiers axes expliquent bien l'inertie sur les données : Les axes étant orthogonaux, les axes 1, 2, 3 expliquent 27.14% + 16.87% + 15.47% = 59.48% de l'inertie.
+
+Quant aux axes 1 et 2, ils prennent en compte 27.14% + 16.87% = 44.01% du jeu de données.
 
 On peut aussi voir que l'axe 2 et 3 expliquent à peu près autant l'un que l'autre l'inertie, ainsi on pourra aussi visualiser les données projetées sur le plan formé par l'axe 1 et 3 (même 2 et 3).
 
 ```{r, echo=FALSE}
-barplot(res$eig[,2], col=rainbow(n=14,alpha=0.6,start=0,end=0.33),main="Pourcentage d'inertie expliquée par chaque axe", ylab="Contribution en %")
-lines(seq(0.75,16.3,(16.3-0.75)/13),res$eig[,2],type="b", xlim=c(0,max(res$eig[,2])+10))
-text(seq(0.75,16.3,(16.3-0.75)/13),res$eig[,2]-1, paste(round(res$eig[,2],2),"%"), cex=0.7)
-#text(5,22,paste(round(res$eig[,2],2)[1],"% +",round(res$eig[,2],2)[2],"% = ",round(res$eig[,2],2)[1]+round(res$eig[,2],2)[2],"%",sep=""))
+barplot(res.pca$eig[,2], col=rainbow(n=14,alpha=0.6,start=0,end=0.33),main="Pourcentage d'inertie expliquée par chaque axe", ylab="Contribution en %")
+lines(seq(0.75,16.3,(16.3-0.75)/13),res.pca$eig[,2],type="b", xlim=c(0,max(res.pca$eig[,2])+10))
+text(seq(0.75,16.3,(16.3-0.75)/13),res.pca$eig[,2]-1, paste(round(res.pca$eig[,2],2),"%"), cex=0.7)
 ```
 
 On a un nouveau cercle de corrélation, ici on voit que :
@@ -246,25 +254,25 @@ On a un nouveau cercle de corrélation, ici on voit que :
 * L'axe 3 oppose le "confort" aux services qui sont faiblement corrélés dû à l'angle proche de 90 degrés
 
 ```{r}
-plot(res, select="cos2 0.58", choix="varcor", axes = c(1,3))
+plot(res.pca, select="cos2 0.60", choix="varcor", axes = c(1,3))
 ```
 
 Ci-dessous on voit donc que les passagers sont en général plus satisfait quand ils se sont amusé (loisirs), que le service était agréable (Gestion bagage, Inflight.service, On.board.service) et qu'ils ont passé un vol confortable (Siege.confort, nourriture, propreté), et inversement pour les passagers non satisfaits.
 
 ```{r}
-plot(res, habillage=19, select="cos2 0.58", choix="ind", axes = c(1,3))
+plot(res.pca, habillage=19, select="cos2 0.9", cex=0.8, choix="ind", axes = c(1,3))
 ```
 
 Ici on a le cercle de corrélation avec l'axe 2 et 3:
 
 ```{r}
-plot(res, select="cos2 0.6", choix="varcor", axes = c(2,3))
+plot(res.pca, select="cos2 0.6", choix="varcor", axes = c(2,3))
 ```
 
 Il n'y a pas grand-chose à interpréter car le barycentre des voyageurs satisfaits et non satisfaits sont tout les 2 proches du centre de gravité de ce plan.
 
 ```{r}
-plot(res, invisible="ind",choix="ind", axes = c(2,3))
+plot(res.pca, invisible="ind", choix="ind", axes=c(2,3))
 ```
 
 
@@ -280,12 +288,14 @@ Certains passagers ont attribué comme notes 0 pour certaines catégories du vol
 On effectue la transformation ”double centrage” sur les données transformées par racine carrée afin de voir si on peut faire gagner en contribution les premières composantes afin d'être plus précis lors de nos analyses.
 
 ```{r}
-data_bis3 <- sqrt(data_bis[,c(-4:-1,-19)])
-data_bis3 <- t(scale(t(data_bis3)))
-res3 <- PCA(data_bis3, graph=FALSE)
-barplot(res3$eig[,2], col=rainbow(n=14,alpha=0.6,start=0.66,end=1),main="Pourcentage d'intertie expliquée par chaque axe\n(Données transformées par racine carrée)", ylab="Contribution en %")
-lines(seq(0.75,16.3,(16.3-0.75)/13),res3$eig[,2],type="b")
-text(seq(0.75,16.3,(16.3-0.75)/13),res3$eig[,2]-1, paste(round(res3$eig[,2],2),"%"), cex=0.7)
+DF.tmp <- sqrt(DF[,7:20])
+DF.tmp <- t(scale(t(DF.tmp)))
+res.pca <- PCA(DF.tmp, graph=FALSE)
+barplot(res.pca$eig[,2], col=rainbow(n=14,alpha=0.6,start=0.66,end=1),
+        main="Pourcentage d'intertie expliquée par chaque axe\n(Données transformées par racine carrée)",
+        ylab="Contribution en %")
+lines(seq(0.75,16.3,(16.3-0.75)/13), res.pca$eig[,2], type="b")
+text(seq(0.75,16.3,(16.3-0.75)/13), res.pca$eig[,2]-1, paste(round(res.pca$eig[,2],2),"%"), cex=0.7)
 ```
 
 Les transformations ne nous ont pas fait gagner plus d'informations au niveau des 2 premiers axes, on s'arrête là pour l'ACP.
@@ -302,14 +312,14 @@ Il en est ressorti que les services proposés dans l'avion et le confort à bord
 
 
 ```{r}
-data_bis <- data[,c(1,2,4,5,23)]
-paged_table(data_bis)
+DF.tmp<- DF[,c(1,2,4,5,23)]
+paged_table(DF.tmp)
 ```
 
 ACM 
 
 ```{r}
-res.mca <- MCA(data_bis, quali.sup = 5, graph=FALSE)
+res.mca <- MCA(DF.tmp, quali.sup = 5, graph=FALSE)
 ```
 
 D'abbord on peut observer que la première dimension influe à un peu plus de 30% quant à la 2, 3, 4 elles influent toutes autour de 20%.
@@ -359,10 +369,10 @@ On peut voir ici que les voyageurs en classe Éco Plus sont moins satisfaits de 
 plot(res.mca, invisible="ind", axes=c(3,4))
 ```
 
-Rappelez-vous de l'individu n°3297, il était satisfait de son vol malgré les mauvaises notes attribués aux différentes catégories. On voit qu'il possède toutes les modalités influant positivement sur la satisfaction. Ceci montre bien que l'analyse des données qualitatives est importante car on a eu des informations qu'on ne pouvait pas avoir avec l'ACP.
+Rappelez-vous de l'individu n°70657, il était satisfait de son vol malgré les mauvaises notes attribués aux différentes catégories. On voit qu'il possède toutes les modalités influant positivement sur la satisfaction. Ceci montre bien que l'analyse des données qualitatives est importante car on a eu des informations qu'on ne pouvait pas avoir avec l'ACP.
 
 ```{r, echo=FALSE}
-paged_table(data[3297,])
+paged_table(DF.tmp[70657,])
 ```
 
 
@@ -381,70 +391,99 @@ D'après l'ACM :
 
 
 ## Clustering 
+On peut dicerner 4 types de catégorie d'âge :
+
+* 7-19 ans
+* 20-38 ans
+* 39-60 ans
+* 61+ ans
 
 ```{r}
+tab = table(data.frame(DF$Age,DF$Satisfaction))
+barplot(tab[,2]/(tab[,1]+tab[,2]),
+        width=tab[,1]+tab[,2],
+        col=rainbow(80),
+        xlab="Age",
+        ylab="Fréquence de Satisfaction",
+        main="Fréquence de satisfaction selon l'age")
+```
+
+```{r, echo=FALSE}
 change_age <- function(x){
-  if(7 < x && x <= 17)
-    return("7-17")
-  else if(17 < x && x <= 25)
-    return("18-25")
-  else if(25 < x && x <= 39)
-    return("26-39")
-  else if(39 < x && x <= 59)
-    return("40-59")
+  if(7 < x && x <= 19)
+    return("7-19")
+  else if(19 < x && x <= 38)
+    return("20-38")
+  else if(38 < x && x <= 60)
+    return("39-60")
   else
-    return("60+")
+    return("61+")
 }
 
-data.qual = data[,1:5]
-data.qual$Age = paste(lapply(data.qual$Age,change_age))
-profils = data.frame(table(data.qual))
-profils = profils[profils[,6]>0,]
-profils = paste(profils[,1],profils[,2],profils[,3],profils[,4],profils[,5],sep="/")
-data_df = data[,7:20]
-col_name = colnames(data_df)
-data_df = cbind(data_df,paste(data.qual[,1],data.qual[,2],data.qual[,3],data.qual[,4],data.qual[,5],sep="/"))
-colnames(data_df) = c(col_name,"profil")
-data_df=aggregate.data.frame(x=data_df[-15], by=list(data_df$profil), FUN=mean)
+DF.tmp = DF[,1:5]
+DF.tmp$Age = paste(lapply(DF.tmp$Age,change_age))
+```
+
+On a un nouveau dataframe :
+
+```{r, echo=FALSE}
+paged_table(DF.tmp)
+```
+
+Nous allons maintenant regrouper les individus par groupes en utilisant les différentes méthodes de clustering. Il n'y aura pas grand intérêt à les réaliser sur l'ensemble des individus, nous allons donc modifier le jeu de données afin d'analyser les données en fonction des "profils" d'individus. On pourra de cette manière déterminer quels sont les profils les plus proches en terme de notation, et de satisfaction.
+
+```{r,echo=FALSE}
+profils = data.frame(table(DF.tmp))
+```
+
+On ne garde que les profils qui compte plus de 30 personnes afin que le profils soit intéréssant a analyser.
+On compte maintenant 68 profils.
+```{r}
+profils = profils[profils[,6]>=30,]
+row.names(profils) = paste(1:dim(profils)[1])
+paged_table(profils)
 ```
 
 ```{r}
-data_df.dist = dist(data_df[,-1])
+profils = paste(profils[,1], profils[,2], profils[,3], profils[,4], profils[,5], sep="/")
+DF.notes = DF[,7:20]
+col_name = colnames(DF.notes)
+DF.notes = cbind(paste(DF.tmp[,1], DF.tmp[,2], DF.tmp[,3], DF.tmp[,4], DF.tmp[,5], sep="/"), DF.notes)
+colnames(DF.notes) = c("profil", col_name)
 ```
 
+On fait la moyenne des notes de chaque catégories :
 
-Nous allons maintenant tenter de regrouper les individus par groupes en utilisant les différentes méthodes de clusterig. Il n'y aura pas grand intérêt à les réaliser sur l'ensemble des individus, nous allons donc modifier le jeu de données afin d'analyser les données en fonction des "profils" d'individus. On pourra de cette manière déterminer quels sont les profils les plus proches en terme de notation, et de satisfaction
-
-On définit alors 95 profils : 
-
-```{r}
-paged_table(df)
-profils
-```
-
-On décrit donc 24 profils possibles:
-
-```{r}
-data.quant <- data[,7:20]
-data.quant <- cbind(data.quant, rowMeans(data.quant))
-colnames(data.quant) = c(colnames(data.quant)[1:14],"Moyenne")
-data.qual <- data[,c(1,2,4,5,23)]
-head(data.qual)
-data_count_1 <- aggregate(data.quant[,2] ~ data.qual , data, mean)
-data_count_1
+```{r,echo=FALSE}
+bool_profil = DF.notes$profil %in% profils
+DF.notes=DF.notes[bool_profil,]
+DF.agg=aggregate.data.frame(x=DF.notes[,-1], by=list(DF.notes$profil), FUN=mean)[,-1]
+row.names(DF.agg)=profils
+paged_table(DF.agg)
 ```
 
 ```{r}
-summary(data[,9:20])
-
-res = scale(data[1:500,9:20],center = TRUE,scale = TRUE)
-d.indiv = dist(res)
-#d.indiv
-hc <- hclust(d.indiv)
-plot(hc,cex = 0.1, col=1)
-rect.hclust(hc, k = 20)
-
+K=7
+DF.agg.dist = dist(DF.agg)
+cah.ward = hclust(DF.agg.dist, method="ward.D2")
+par(cex.main=2, cex=0.2)
+plot(cah.ward, hang=-1)
+rect.hclust(cah.ward,K)
 ```
+
+```{r}
+groupes.cah <-cutree(cah.ward, K)
+Means_groupes <- matrix(NA, nrow=K, ncol=dim(DF.notes)[2])
+colnames(Means_groupes)=c(colnames(DF.notes[,-1]),"satisfied")
+rownames(Means_groupes)= paste("Groupe",1:K,sep="_")
+DF.tmp = data.frame(DF.notes,(DF[bool_profil,23]=="satisfied")*1)
+for (i in 1:K) Means_groupes[i,] <- colMeans(DF.tmp[groupes.cah==i,][,-1])
+Means_groupes
+```
+
+
+
+
 
 
 
