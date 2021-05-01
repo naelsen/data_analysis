@@ -15,6 +15,7 @@ rm(list=ls())
 library(FactoMineR)
 library(MASS)
 library(rmarkdown)
+library(factoextra)
 ```
 
 
@@ -120,7 +121,7 @@ mean_notes <-rowMeans(DF[,7:20])
 tmp = table(as.factor(mean_notes),DF$Satisfaction)
 barplot((tmp/rowSums(tmp))[,2],
          width=rowSums(tmp),
-         col=rainbow(n=52,alpha=0.7,start=0,end=0.35),
+         col=rainbow(n=52,alpha=0.8,start=0,end=0.4),
          main = "Fréquence de satisfaction en fonction de la moyenne des notes",
          xlab = "Note moyenne",
          ylab = "Pourcentage d'individus satisfaits")
@@ -132,7 +133,7 @@ Ainsi, on va faire notre ACP sur les notes.
 
 **Les individus ou variables peuvent être proches dans le plan mais eloignés dans l'espace s'ils sont mal représentés dans le plan.**
 
-Ainsi, il est important d'expliquer les individus avec des variables bien representées dans le plan.
+Ainsi, il est important d'expliquer le modèle avec des variables bien representées dans le plan.
 Pour cela on veillera à ne pas prendre les variables et individus ayant un cos2 trop bas. Ici on choisit un cos2 égale à 0.58 afin qu'il ne soit pas trop bas et qu'on ait au moins 4 variables à utiliser afin d'expliquer nos individus sur les axes 1 et 2.
 
 Ici l'axe 1 va faire le contraste entre le confort à bord (droite) et l'inconfort (gauche), tandis que l'axe 2 fera le contraste entre les aspects techniques pour ce qui concerne le vol.
@@ -143,28 +144,32 @@ Les variables quantitatives supplémentaires ne sont pas du tout interprétables
 plot(res.pca,select="cos2 0.68", choix="varcor")
 ```
 
-**Lorsque l'angle est proche de 0°, les variables sont fortement corrélés positivement.**
+**Lorsque l'angle entre deux axes est proche de 0°, les variables sont fortement corrélés positivement.**
 
 **Lorsque l'angle est proche de 90°, les variables ne sont pas corrélés, ou très peu.**
 
 **Lorsque l'angle est proche de 180°, les variables sont fortement corrélés négativement.**
 
-Ainsi, ci-dessus on voit que la facilité de reservation et le wifi sont fortement correlé.
+* Ainsi, ci-dessus on voit que la facilité de reservation et le wifi sont fortement correlés.
 
-Loisir et Facilité.reservation ne le sont pas, ou très peu.
+* Loisir et Facilité.reservation ne le sont pas, ou très peu.
 
-Loisir et Wifi sont un peu corrélés.
+* Loisir et Wifi sont un peu corrélés.
 
 Verifions le :
 
 Graphiquement (Facilité.resevation/Wifi) :
 
 ```{r,echo=FALSE}
-boxplot(DF.tmp$Facilité.resevation ~ DF.tmp$Wifi)
+boxplot(DF.tmp$Facilité.resevation ~ DF.tmp$Wifi,
+        main = "Corrélation Facilité de reservation / Wifi",
+        xlab = "Notes Wifi",
+        ylab = "Facilité.reservation")
 points(tapply(DF.tmp$Facilité.resevation, DF.tmp$Wifi, mean), col='red')
 ```
+On remarque sur le boxplot qu'il semble y avoir une corrélation entre les notes attribuées à Wifi et à la Faclité de reservation, nous allons maintenant le verifier.
 
-Chisq-deux (Facilité.resevation/Wifi) :
+**Test du chi-deux (Facilité.resevation/Wifi)** :
 
 On rejette $H_0$ car p-value<0.5 , ainsi on peut affirmer avec un risque de se tromper égal à 5% que ces deux variables sont corrélés.
 
@@ -178,11 +183,15 @@ Graphiquement on a pu voir qu'un passager donne, en moyenne, des notes égales �
 Graphiquement (Loisir/Wifi) :
 
 ```{r,echo=FALSE}
-boxplot(DF.tmp$Loisir ~ DF.tmp$Wifi)
+boxplot(DF.tmp$Loisir ~ DF.tmp$Wifi,
+        main = "Boxplot des notes Loisir / Wifi",
+        xlab = "Notes Wifi",
+        ylab = "Notes Loisir")
 points(tapply(DF.tmp$Loisir, DF.tmp$Wifi, mean), col='red')
 ```
+La corrélation entre Wifi et Loisir semble bien moins flagrante que celle vu précédemment, nous allons le  verifier.
 
-Chisq-deux (Loisir/Wifi) :
+**Test du Chi-deux (Loisir/Wifi) :**
 
 On rejette $H_0$ car p-value<0.5 , ainsi on peut affirmer avec un risque de se tromper égal à 5% que ces deux variables sont corrélés.
 
@@ -197,19 +206,23 @@ Graphiquement on a pu voir qu'un passager donne, en moyenne, des notes plus éle
 Graphiquement (Loisir/Facilité.reservation) :
 
 ```{r,echo=FALSE}
-boxplot(DF.tmp$Loisir ~ DF.tmp$Facilité.resevation)
+boxplot(DF.tmp$Loisir ~ DF.tmp$Facilité.resevation,
+        main = "Boxplot des notes Loisir / Facilité reservation",
+        xlab = "Notes Facilité de reservation",
+        ylab = "Notes Loisir")
 points(tapply(DF.tmp$Loisir, DF.tmp$Facilité.resevation, mean), col='red')
 ```
+On vérifie une nouvelle fois la corrélation entre les deux variables.
 
-Chisq-deux (Loisir/Facilité.resevartion) :
+**Chi-deux (Loisir/Facilité.resevartion) :**
 
-On rejette $H_0$ car p-value<0.5 , ainsi on peut affirmer avec un risque de se tromper égal à 5% que ces deux variables sontcorrélés.
+On rejette $H_0$ car p-value<0.5 , ainsi on peut affirmer avec un risque de se tromper égal à 5% que ces deux variables sont corrélés.
 
 ```{r}
 chisq.test(DF.tmp$Loisir, DF.tmp$Facilité.resevation , simulate.p.value=TRUE)
 ```
 
-Loisir et Facilité.reservation sont corrélés, mais on peut voir graphiquement qu'elles ne le sont pas trop, on peut faire l'hypothèse que c'est parce qu'un passager qui met des bonnes notes aura plus tendance à mettre des bonnes notes aux autres catégories, on peut faire le même raisonnemen pour les mauvaises notes.
+Le test du chi-deux montre que Loisir et Facilité.reservation sont corrélés, mais on peut voir graphiquement qu'elles ne le sont pas vraiment, on peut faire l'hypothèse que c'est parce qu'un passager qui met de bonnes notes en moyenne aura tendance à mettre de meilleures notes aux autres catégories, on peut faire le même raisonnement pour les mauvaises notes.
 
 ***
 
@@ -462,10 +475,11 @@ row.names(DF.agg)=profils
 paged_table(DF.agg)
 ```
 
+### Hierarchique
 ```{r}
-K=7
+K= 7
 DF.agg.dist = dist(DF.agg)
-cah.ward = hclust(DF.agg.dist, method="ward.D2")
+cah.ward = hclust(DF.agg.dist, method="single")
 par(cex.main=2, cex=0.2)
 plot(cah.ward, hang=-1)
 rect.hclust(cah.ward,K)
@@ -477,14 +491,55 @@ Means_groupes <- matrix(NA, nrow=K, ncol=dim(DF.notes)[2])
 colnames(Means_groupes)=c(colnames(DF.notes[,-1]),"satisfied")
 rownames(Means_groupes)= paste("Groupe",1:K,sep="_")
 DF.tmp = data.frame(DF.notes,(DF[bool_profil,23]=="satisfied")*1)
-for (i in 1:K) Means_groupes[i,] <- colMeans(DF.tmp[groupes.cah==i,][,-1])
+for (i in 1:K) Means_groupes[i,] <- colSums(DF.tmp[groupes.cah==i,][,-1])/dim(DF.notes)[1]
+Means_groupes
+```
+En divisant par le nombre d'individus total, on prend en compte le fait que les groupes ne sont pas de même taille. On a ces résultats qui sont différents, c'est une piste à exploiter.
+
+
+Le clustering hiérarchique nous permet de determiner le nombre de groupes idéal : $K = 7$. Les notes attribuées selon les différentes groupes ne sont pas significativement différentes.
+
+
+### Kmeans
+
+On réalise ensuite le Kmeans, avec le meme nombre de groupes qu'avec le CAH.
+
+```{r}
+Means_groupes <- matrix(NA, nrow=K, ncol=dim(DF.notes)[2])
+kmeans.clusters = kmeans(DF.agg, centers =K, nstart = 500)
+for (i in 1:K) Means_groupes[i,] <- colMeans(DF.tmp[kmeans.clusters$cluster==i,][,-1])
+colnames(Means_groupes)=c(colnames(DF.notes[,-1]),"satisfied")
+rownames(Means_groupes)= paste("Groupe",1:K,sep="_")
+groupes.kmeans = kmeans.clusters$cluster
+DF.tmp = data.frame(DF.notes,(DF[bool_profil,23]=="satisfied")*1)
+for (i in 1:K) Means_groupes[i,] <- colMeans(DF.tmp[groupes.kmeans==i,][,-1])
 Means_groupes
 ```
 
+### Visualisation 
+
+On représente les clusters en 2D à l'aide des composantes principales. On remarque que certains clusters se chevauchent
+```{r}
+fviz_cluster(kmeans.clusters, data = DF.agg,
+             palette = c("#0008FB", "#971556", "#E7B800","#69F006" , "#F00606","#06F0CD" , "#EE05C0"), 
+             geom = "point",
+             ellipse.type = "convex", 
+             ggtheme = theme_bw(),
+             main = "Kmeans : Représentation des clusters")
+             #points( kmeans.clusters$centers))
+```
+
+On remarque que les clusters 2 et 6 sont assez proches par exemple, obeservons les moyennes des notes attribués par les individus: 
 
 
+Notes des individus du groupe 2 : 
+```{r,echo=FALSE}
+Means_groupes[2,]
+```
+Notes des individus du groupe 6 : 
+```{r,echo=FALSE}
+Means_groupes[6,]
+#summary(lm(Means_groupes[,2] ~ Means_groupes[,6]))
+```
 
-
-
-
-
+On peut voir que les moyennes des notes attribués par individus des deux clusters sont très proches
