@@ -433,7 +433,7 @@ change_age <- function(x){
     return("61+")
 }
 
-DF.tmp = DF[,1:5]
+DF.tmp = DF[,c(2:5)]
 DF.tmp$Age = paste(lapply(DF.tmp$Age,change_age))
 ```
 
@@ -452,16 +452,20 @@ profils = data.frame(table(DF.tmp))
 On ne garde que les profils qui compte plus de 30 personnes afin que le profils soit intéréssant a analyser.
 On compte maintenant 68 profils.
 ```{r}
-profils = profils[profils[,6]>=30,]
+profils = profils[profils[,5]>=30,]
 row.names(profils) = paste(1:dim(profils)[1])
 paged_table(profils)
 ```
 
 ```{r}
-profils = paste(profils[,1], profils[,2], profils[,3], profils[,4], profils[,5], sep="/")
+profils = paste(profils[,1], profils[,2], profils[,3], profils[,4], sep="/")
+#DF.notes = DF[,c(9,11,14,17)]
 DF.notes = DF[,7:20]
+#col_name = colnames(DF.notes)
+#DF.notes = data.frame(DF.notes,(DF[,23]=="satisfied")*1)
+#colnames(DF.notes) = c(col_name,"satisfied")
 col_name = colnames(DF.notes)
-DF.notes = cbind(paste(DF.tmp[,1], DF.tmp[,2], DF.tmp[,3], DF.tmp[,4], DF.tmp[,5], sep="/"), DF.notes)
+DF.notes = cbind(paste(DF.tmp[,1], DF.tmp[,2], DF.tmp[,3], DF.tmp[,4], sep="/"), DF.notes)
 colnames(DF.notes) = c("profil", col_name)
 ```
 
@@ -477,9 +481,9 @@ paged_table(DF.agg)
 
 ### Hierarchique
 ```{r}
-K= 7
-DF.agg.dist = dist(DF.agg)
-cah.ward = hclust(DF.agg.dist, method="single")
+K=7
+DF.agg.dist = dist(DF.agg, method = "maximum") # "manhattan" (L1), "euclidean" (L2), "maximum" (L.infini), "minkowski", p = truc (L.truc)
+cah.ward = hclust(DF.agg.dist, method="ward.D2")
 par(cex.main=2, cex=0.2)
 plot(cah.ward, hang=-1)
 rect.hclust(cah.ward,K)
@@ -491,7 +495,7 @@ Means_groupes <- matrix(NA, nrow=K, ncol=dim(DF.notes)[2])
 colnames(Means_groupes)=c(colnames(DF.notes[,-1]),"satisfied")
 rownames(Means_groupes)= paste("Groupe",1:K,sep="_")
 DF.tmp = data.frame(DF.notes,(DF[bool_profil,23]=="satisfied")*1)
-for (i in 1:K) Means_groupes[i,] <- colSums(DF.tmp[groupes.cah==i,][,-1])/dim(DF.notes)[1]
+for (i in 1:K) Means_groupes[i,] <- colMeans(DF.tmp[DF.tmp$profil %in% rownames(data.frame(groupes.cah[groupes.cah==i])),][,-1])
 Means_groupes
 ```
 En divisant par le nombre d'individus total, on prend en compte le fait que les groupes ne sont pas de même taille. On a ces résultats qui sont différents, c'est une piste à exploiter.
@@ -507,12 +511,14 @@ On réalise ensuite le Kmeans, avec le meme nombre de groupes qu'avec le CAH.
 ```{r}
 Means_groupes <- matrix(NA, nrow=K, ncol=dim(DF.notes)[2])
 kmeans.clusters = kmeans(DF.agg, centers =K, nstart = 500)
-for (i in 1:K) Means_groupes[i,] <- colMeans(DF.tmp[kmeans.clusters$cluster==i,][,-1])
+for (i in 1:K) Means_groupes[i,] <- colMeans(DF.tmp[DF.tmp$profil %in% rownames(data.frame(kmeans.clusters$cluster[kmeans.clusters$cluster==i])),][,-1])
+
 colnames(Means_groupes)=c(colnames(DF.notes[,-1]),"satisfied")
 rownames(Means_groupes)= paste("Groupe",1:K,sep="_")
 groupes.kmeans = kmeans.clusters$cluster
 DF.tmp = data.frame(DF.notes,(DF[bool_profil,23]=="satisfied")*1)
-for (i in 1:K) Means_groupes[i,] <- colMeans(DF.tmp[groupes.kmeans==i,][,-1])
+for (i in 1:K) Means_groupes[i,] <- colMeans(DF.tmp[DF.tmp$profil %in% rownames(data.frame(groupes.kmeans[groupes.kmeans==i])),][,-1])
+
 Means_groupes
 ```
 
@@ -521,7 +527,7 @@ Means_groupes
 On représente les clusters en 2D à l'aide des composantes principales. On remarque que certains clusters se chevauchent
 ```{r}
 fviz_cluster(kmeans.clusters, data = DF.agg,
-             palette = c("#0008FB", "#971556", "#E7B800","#69F006" , "#F00606","#06F0CD" , "#EE05C0"), 
+             palette = rainbow(K), 
              geom = "point",
              ellipse.type = "convex", 
              ggtheme = theme_bw(),
