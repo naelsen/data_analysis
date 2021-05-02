@@ -412,18 +412,25 @@ D'après l'ACM :
 * Le sexe de l'individu n'a pas l'air d'influer significativement sur la satisfaction, mais on peut faire l'hypothèse que les femmes sont moins satisfaites que les hommes.
 
 
+
 ## Clustering 
-On peut dicerner 4 types de catégorie d'âge :
+
+Nous allons maintenant appliquer les méthodes de clustering vues en cours. Le regroupement "d'individus" ne sera pas très intéressant à réaliser, nous allons plutôt définir des profils avec l'ensembles des modalités. 
+
+Dans cette partie, on considère l'âge comme une variable qualitative à quatres modalités :
 
 * 7-19 ans
 * 20-38 ans
 * 39-60 ans
 * 61+ ans
 
+Avant la transformation, on vérifie si l'âge a un impact sur la satisfaction des passagers.
 ```{r, echo=FALSE}
+# On recupère l'âge et la satisfaction des individus.
 tab = table(data.frame(DF$Age,DF$Satisfaction))
-barplot(tab[,2]/(tab[,1]+tab[,2]),
-        width=tab[,1]+tab[,2],
+# Table de contingence de l'âge et la satisfaction.
+barplot(tab[,2]/(tab[,1]+tab[,2]), # Fréquence de satisfaction
+        width=tab[,1]+tab[,2], # Taille des groupes
         col=rainbow(80),
         xlab="Age",
         ylab="Fréquence de Satisfaction",
@@ -431,6 +438,7 @@ barplot(tab[,2]/(tab[,1]+tab[,2]),
 ```
 
 ```{r, echo=FALSE}
+# On définit la fonction de transformation
 change_age <- function(x){
   if(7 < x && x <= 19)
     return("7-19")
@@ -441,8 +449,8 @@ change_age <- function(x){
   else
     return("61+")
 }
-
 DF.tmp = DF[,c(2:5)]
+# On l'applique à tous les individus
 DF.tmp$Age = paste(lapply(DF.tmp$Age,change_age))
 ```
 
@@ -452,13 +460,13 @@ On a un nouveau dataframe pour les variables qualitatives qui nous serviront a l
 paged_table(DF.tmp)
 ```
 
-Nous allons maintenant regrouper les individus par groupes en utilisant les différentes méthodes de clustering. Il n'y aura pas grand intérêt à les réaliser sur l'ensemble des individus, nous allons donc modifier le jeu de données afin d'analyser les données en fonction des "profils" d'individus. On pourra de cette manière déterminer quels sont les profils les plus proches en terme de notation, et de satisfaction.
+Nous allons maintenant regrouper les individus par groupes en utilisant les différentes méthodes de clustering. On pourra de cette manière déterminer quels sont les profils les plus proches en terme de notation, et de satisfaction.
 
 ```{r,echo=FALSE}
 profils = data.frame(table(DF.tmp))
 ```
 
-On ne garde que les profils qui compte plus de 30 personnes afin que le profils soit intéréssant a analyser.
+On ne garde que les profils qui compte plus de 30 personnes d'avoir des résultats intéréssant a analyser.
 On compte maintenant 68 profils.
 ```{r, echo=FALSE}
 profils = profils[profils[,5]>=30,]
@@ -467,12 +475,10 @@ paged_table(profils)
 ```
 
 ```{r, echo=FALSE}
+# On donne les noms des profils selon chaque variable qualiltative
 profils = paste(profils[,1], profils[,2], profils[,3], profils[,4], sep="/")
-#DF.notes = DF[,c(9,11,14,17)]
+# On recupère seulement les colonnes des notes attribués pour notre clusteing
 DF.notes = DF[,7:20]
-#col_name = colnames(DF.notes)
-#DF.notes = data.frame(DF.notes,(DF[,23]=="satisfied")*1)
-#colnames(DF.notes) = c(col_name,"satisfied")
 col_name = colnames(DF.notes)
 DF.notes = cbind(paste(DF.tmp[,1], DF.tmp[,2], DF.tmp[,3], DF.tmp[,4], sep="/"), DF.notes)
 colnames(DF.notes) = c("profil", col_name)
@@ -492,9 +498,9 @@ paged_table(DF.agg)
 ### Hierarchique
 
 
-Ainsi, on peut commencer notre clustering.
+On commence par faire un clustering hierarchique pour déterminer le nombre de groupes ($K$) idéal.
 
-$K=6$ semble on bon compromis.
+$K=6$ semble être convenable.
 
 ```{r}
 K=6
