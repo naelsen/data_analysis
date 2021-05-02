@@ -26,17 +26,17 @@ On voit que les deux premières colonnes (X & id) sont inutiles pour nos analyse
 
 ```{r}
 DF <- read.csv("data/train.csv")
-# On supprime les lignes ou il y a des valeurs manquantes
+# On supprime les lignes ou il y a des valeurs manquantes.
 DF <- DF[!rowMeans(is.na(DF)*1) > 0,]
 str(DF)
 ```
 
 ```{r}
-# On retire les colonnes inutiles
+# On retire les colonnes inutiles.
 DF <- DF[,c(-1,-2)]
-# On modifie les noms des lignes pour le style ;-)
+# On modifie le nom des lignes pour le style ;-)
 row.names(DF) <- paste("n°", sep="", 1:dim(DF)[1]) 
-# On renomme les colonnes pour avoir des noms moins longs (Utile pour l'affichage)
+# On renomme les colonnes pour avoir des noms moins longs (Utile pour l'affichage).
 colnames(DF) <- c("Genre", "Fidélité", "Age", "Type.du.vol", "Classe", "Distance", "Wifi", "Horaire.pratique", "Facilité.resevation", "Emplacement.porte", "Nourriture", "Enregistrement.en.ligne", "Siege.confort", "Loisir", "On.board.service", "Espace.jambe", "Gestion.bagage", "Checkin.service", "Inflight.service", "Propreté", "Retard.depart", "Retard.arrivé", "Satisfaction")
 ```
 
@@ -46,11 +46,11 @@ Petit avant gout des données :
 paged_table(DF)
 ```
 
-* Les femmes sont autant présentes que les hommes a peu de choses près.
+* Il y a autant d'hommes que de femmes dans notre jeu de données.
 
-* Il y a en majorité des personnes qui voyagent pour une raison professionnelle que personnelle.
+* Il y a une majorité de personnes qui voyagent pour une raison professionnelle que personnelle.
 
-* Il y a beaucoup plus de loyal customer que de non loyal.
+* Il y a beaucoup plus de clients loyaux que non loyaux.
 
 * Les voyageurs en classe Éco Plus representent une petite partie des voyageurs, quant aux classes business et éco ils en representent un peu moins de la moitié.
 
@@ -167,6 +167,7 @@ boxplot(DF.tmp$Facilité.resevation ~ DF.tmp$Wifi,
         ylab = "Facilité.reservation")
 points(tapply(DF.tmp$Facilité.resevation, DF.tmp$Wifi, mean), col='red')
 ```
+
 On remarque sur le boxplot qu'il semble y avoir une corrélation entre les notes attribuées à Wifi et à la Faclité de reservation, nous allons maintenant le verifier.
 
 **Test du chi-deux (Facilité.resevation/Wifi)** :
@@ -189,6 +190,7 @@ boxplot(DF.tmp$Loisir ~ DF.tmp$Wifi,
         ylab = "Notes Loisir")
 points(tapply(DF.tmp$Loisir, DF.tmp$Wifi, mean), col='red')
 ```
+
 La corrélation entre Wifi et Loisir semble bien moins flagrante que celle vu précédemment, nous allons le  verifier.
 
 **Test du Chi-deux (Loisir/Wifi) :**
@@ -212,6 +214,7 @@ boxplot(DF.tmp$Loisir ~ DF.tmp$Facilité.resevation,
         ylab = "Notes Loisir")
 points(tapply(DF.tmp$Loisir, DF.tmp$Facilité.resevation, mean), col='red')
 ```
+
 On vérifie une nouvelle fois la corrélation entre les deux variables.
 
 **Chi-deux (Loisir/Facilité.resevartion) :**
@@ -411,7 +414,7 @@ On peut dicerner 4 types de catégorie d'âge :
 * 39-60 ans
 * 61+ ans
 
-```{r}
+```{r, echo=FALSE}
 tab = table(data.frame(DF$Age,DF$Satisfaction))
 barplot(tab[,2]/(tab[,1]+tab[,2]),
         width=tab[,1]+tab[,2],
@@ -437,7 +440,7 @@ DF.tmp = DF[,c(2:5)]
 DF.tmp$Age = paste(lapply(DF.tmp$Age,change_age))
 ```
 
-On a un nouveau dataframe :
+On a un nouveau dataframe pour les variables qualitatives qui nous serviront a la creation des profils:
 
 ```{r, echo=FALSE}
 paged_table(DF.tmp)
@@ -451,13 +454,13 @@ profils = data.frame(table(DF.tmp))
 
 On ne garde que les profils qui compte plus de 30 personnes afin que le profils soit intéréssant a analyser.
 On compte maintenant 68 profils.
-```{r}
+```{r, echo=FALSE}
 profils = profils[profils[,5]>=30,]
 row.names(profils) = paste(1:dim(profils)[1])
 paged_table(profils)
 ```
 
-```{r}
+```{r, echo=FALSE}
 profils = paste(profils[,1], profils[,2], profils[,3], profils[,4], sep="/")
 #DF.notes = DF[,c(9,11,14,17)]
 DF.notes = DF[,7:20]
@@ -479,29 +482,59 @@ row.names(DF.agg)=profils
 paged_table(DF.agg)
 ```
 
+
 ### Hierarchique
+
+
+Ainsi, on peut commencer notre clustering.
+
+$K=6$ semble on bon compromis.
+
 ```{r}
-K=7
-DF.agg.dist = dist(DF.agg, method = "maximum") # "manhattan" (L1), "euclidean" (L2), "maximum" (L.infini), "minkowski", p = truc (L.truc)
+K=6
+DF.agg.dist = dist(DF.agg, method="euclidean") # "manhattan" (L1), "euclidean" (L2), "maximum" (L.infini), "minkowski", p = truc (L.truc)
 cah.ward = hclust(DF.agg.dist, method="ward.D2")
 par(cex.main=2, cex=0.2)
 plot(cah.ward, hang=-1)
 rect.hclust(cah.ward,K)
 ```
 
+On a donc réussis a créer 6 groupes de profils similaire sur les 68 profils qu'on est en train d'étudier.
+
+Penchons nous sur la composition de ces groupes :
+
 ```{r}
 groupes.cah <-cutree(cah.ward, K)
-Means_groupes <- matrix(NA, nrow=K, ncol=dim(DF.notes)[2])
-colnames(Means_groupes)=c(colnames(DF.notes[,-1]),"satisfied")
-rownames(Means_groupes)= paste("Groupe",1:K,sep="_")
-DF.tmp = data.frame(DF.notes,(DF[bool_profil,23]=="satisfied")*1)
-for (i in 1:K) Means_groupes[i,] <- colMeans(DF.tmp[DF.tmp$profil %in% rownames(data.frame(groupes.cah[groupes.cah==i])),][,-1])
-Means_groupes
+paged_table(data.frame(sort(groupes.cah)))
 ```
-En divisant par le nombre d'individus total, on prend en compte le fait que les groupes ne sont pas de même taille. On a ces résultats qui sont différents, c'est une piste à exploiter.
+
+*Le groupe 1 rassemble des individus en business classe.
+
+*Le groupe 2 réunit les individus en business classe voyageant pour le business.
+
+*Le groupe 3 regroupe les clients fidèles.
+
+*Le groupe 4 est particulier et rassemble seulement deux profils, en particulier, des profils déloyaux qui voyagent en classe éco.
+
+*Le groupe 5 réunit des passagers majoritairement en dessous de 39 ans voyageant en classe éco ou éco plus.
+
+*Le groupe 6 regroupe les passagers de 39 ans et plus, voyageant en éco ou éco plus.
+
+***
+
+```{r}
+groupes.cah <-cutree(cah.ward, K)
+Means_groupes.cah <- matrix(NA, nrow=K, ncol=dim(DF.notes)[2])
+colnames(Means_groupes.cah)=c(colnames(DF.notes[,-1]),"satisfied")
+rownames(Means_groupes.cah)= paste("Groupe",1:K,sep="_")
+DF.tmp = data.frame(DF.notes,(DF[bool_profil,23]=="satisfied")*1)
+for (i in 1:K) Means_groupes.cah[i,] <- colMeans(DF.tmp[DF.tmp$profil %in% rownames(data.frame(groupes.cah[groupes.cah==i])),][,-1])
+paged_table(data.frame(Means_groupes.cah))
+```
 
 
-Le clustering hiérarchique nous permet de determiner le nombre de groupes idéal : $K = 7$. Les notes attribuées selon les différentes groupes ne sont pas significativement différentes.
+
+Le clustering hiérarchique nous permet de determiner le nombre de groupes idéal : $K = 6$. Les notes attribuées selon les différentes groupes ne sont pas significativement différentes.
 
 
 ### Kmeans
@@ -509,43 +542,33 @@ Le clustering hiérarchique nous permet de determiner le nombre de groupes idéa
 On réalise ensuite le Kmeans, avec le meme nombre de groupes qu'avec le CAH.
 
 ```{r}
-Means_groupes <- matrix(NA, nrow=K, ncol=dim(DF.notes)[2])
-kmeans.clusters = kmeans(DF.agg, centers =K, nstart = 500)
-for (i in 1:K) Means_groupes[i,] <- colMeans(DF.tmp[DF.tmp$profil %in% rownames(data.frame(kmeans.clusters$cluster[kmeans.clusters$cluster==i])),][,-1])
+Means_groupes.kmeans <- matrix(NA, nrow=K, ncol=dim(DF.notes)[2])
+res.kmeans = kmeans(DF.agg, centers=Means_groupes.cah[,-15])
+for (i in 1:K) Means_groupes.kmeans[i,] <- colMeans(DF.tmp[DF.tmp$profil %in% rownames(data.frame(res.kmeans$cluster[res.kmeans$cluster==i])),][,-1])
 
-colnames(Means_groupes)=c(colnames(DF.notes[,-1]),"satisfied")
-rownames(Means_groupes)= paste("Groupe",1:K,sep="_")
-groupes.kmeans = kmeans.clusters$cluster
+colnames(Means_groupes.kmeans)=c(colnames(DF.notes[,-1]),"satisfied")
+rownames(Means_groupes.kmeans)= paste("Groupe",1:K,sep="_")
+groupes.kmeans = res.kmeans$cluster
 DF.tmp = data.frame(DF.notes,(DF[bool_profil,23]=="satisfied")*1)
-for (i in 1:K) Means_groupes[i,] <- colMeans(DF.tmp[DF.tmp$profil %in% rownames(data.frame(groupes.kmeans[groupes.kmeans==i])),][,-1])
+for (i in 1:K) Means_groupes.kmeans[i,] <- colMeans(DF.tmp[DF.tmp$profil %in% rownames(data.frame(groupes.kmeans[groupes.kmeans==i])),][,-1])
 
-Means_groupes
+paged_table(data.frame(Means_groupes.kmeans))
+```
+
+```{r}
+table(groupes.cah,groupes.kmeans)
 ```
 
 ### Visualisation 
 
 On représente les clusters en 2D à l'aide des composantes principales. On remarque que certains clusters se chevauchent
 ```{r}
-fviz_cluster(kmeans.clusters, data = DF.agg,
+fviz_cluster(res.kmeans, data = DF.agg,
              palette = rainbow(K), 
              geom = "point",
              ellipse.type = "convex", 
              ggtheme = theme_bw(),
              main = "Kmeans : Représentation des clusters")
-             #points( kmeans.clusters$centers))
 ```
 
-On remarque que les clusters 2 et 6 sont assez proches par exemple, obeservons les moyennes des notes attribués par les individus: 
 
-
-Notes des individus du groupe 2 : 
-```{r,echo=FALSE}
-Means_groupes[2,]
-```
-Notes des individus du groupe 6 : 
-```{r,echo=FALSE}
-Means_groupes[6,]
-#summary(lm(Means_groupes[,2] ~ Means_groupes[,6]))
-```
-
-On peut voir que les moyennes des notes attribués par individus des deux clusters sont très proches
