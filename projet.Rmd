@@ -52,9 +52,9 @@ paged_table(DF)
 
 * Il y a beaucoup plus de clients loyaux que non loyaux.
 
-* Les voyageurs en classe Éco Plus representent une petite partie des voyageurs, quant aux classes business et éco ils en representent un peu moins de la moitié.
+* Les voyageurs en classe Éco Plus représentent une petite partie des voyageurs, quant aux classes business et éco ils en représentent un peu moins de la moitié.
 
-* Pour finir, un peu plus de voyageur sont neutres ou ne sont pas satisfaits de leur voyage que satisfait.
+* Pour finir, la proportion de voyageurs neutres ou insatisfaits et légèrement supérieure à celle des voyageurs satisfaits.
 
 ```{r, echo=FALSE}
 par(fig=c(0,1/2,1/2,1))
@@ -85,18 +85,22 @@ summary(DF[,7:20])
 
 On peut aussi observer les autres variables quantitatives :
 
-* L'Âge est une donnée qui à vu d'oeil est très probablement Gaussienne centrée autour de 40.
+* À vu d'oeil, l'âge suit une loi Gaussienne centrée autour de 40  (bien qu'elle ne prenne que des valeurs entières dans le jeu de données, la variable est Gaussienne dans la vraie vie).
 
-* La variable distance est une donnée qui parrait assez équlibrée.
+* La distance est une variable qui possède quelques valeurs extrêmes au dessus de 4000km.
 
 * Pour les retards il y a énormement de données abérrantes.
 
 ```{r,echo=FALSE}
 par(mfrow=c(2,2))
 boxplot(DF$Age, main="Âge")
+points(mean(DF$Age), col='red')
 boxplot(DF$Distance, main="Distance")
+points(mean(DF$Distance), col='red')
 boxplot(DF$Retard.depart, main="Retard depart")
+points(mean(DF$Retard.depart), col='red')
 boxplot(DF$Retard.arrivé, main="Retard arrivée")
+points(mean(DF$Retard.arrivé), col='red')
 ```
 
 
@@ -114,14 +118,16 @@ DF.tmp <- DF[,c(3,6,21,22,7:20,23)]
 res.pca <- PCA(DF.tmp, quanti.sup=1:4, quali.sup=19, graph=FALSE)
 ```
 
-Il est évident de penser que plus les notes attribuées par les voyageurs sont hautes et plus l'individu a de chance d'être satisfait, on peut le voir avec le graphe ci- dessous. Pour ne pas attribuer trop d'importance aux moyennes des notes des individus qui constitue un petit groupe, on associe un poids qui correspond à la taille du groupe pour chaque moyenne attribuée.
+Il est évident de penser que plus les notes attribuées par les voyageurs sont hautes et plus l'individu a de chance d'être satisfait, on peut le voir avec le graphe ci-dessous. Pour ne pas attribuer trop d'importance aux moyennes des notes des individus qui constituent un petit groupe, on associe une largeur par bande proportionnelle à la taille du groupe pour chaque moyenne attribuée.
 
 ```{r, echo=FALSE}
+# On recupère les notes dans le dataframe, et on en fait la moyenne.
 mean_notes <-rowMeans(DF[,7:20])
+# Table de contingence pour les notes moyennes et la satisfaction.
 tmp = table(as.factor(mean_notes),DF$Satisfaction)
-barplot((tmp/rowSums(tmp))[,2],
-         width=rowSums(tmp),
-         col=rainbow(n=52,alpha=0.8,start=0,end=0.4),
+barplot((tmp/rowSums(tmp))[,2], # Fréquence de satisfaction.
+         width=rowSums(tmp),    # Taille des groupes.
+         col=rainbow(n = dim(tmp)[1],alpha=0.8,start=0,end=0.4),
          main = "Fréquence de satisfaction en fonction de la moyenne des notes",
          xlab = "Note moyenne",
          ylab = "Pourcentage d'individus satisfaits")
@@ -134,11 +140,11 @@ Ainsi, on va faire notre ACP sur les notes.
 **Les individus ou variables peuvent être proches dans le plan mais eloignés dans l'espace s'ils sont mal représentés dans le plan.**
 
 Ainsi, il est important d'expliquer le modèle avec des variables bien representées dans le plan.
-Pour cela on veillera à ne pas prendre les variables et individus ayant un cos2 trop bas. Ici on choisit un cos2 égale à 0.58 afin qu'il ne soit pas trop bas et qu'on ait au moins 4 variables à utiliser afin d'expliquer nos individus sur les axes 1 et 2.
+Pour cela on veillera à ne pas prendre les variables et individus ayant un cos2 trop bas. Ici on choisit un cos2 égale à 0.68 afin qu'il ne soit pas trop bas et qu'on ait au moins 3 variables à utiliser afin d'expliquer nos individus sur les axes 1 et 2.
 
 Ici l'axe 1 va faire le contraste entre le confort à bord (droite) et l'inconfort (gauche), tandis que l'axe 2 fera le contraste entre les aspects techniques pour ce qui concerne le vol.
 
-Les variables quantitatives supplémentaires ne sont pas du tout interprétables.
+On peut voir que les variables quantitatives supplémentaires ne sont pas du tout interprétables (flèches en bleu) .
 
 ```{r}
 plot(res.pca,select="cos2 0.68", choix="varcor")
@@ -154,7 +160,7 @@ plot(res.pca,select="cos2 0.68", choix="varcor")
 
 * Loisir et Facilité.reservation ne le sont pas, ou très peu.
 
-* Loisir et Wifi sont un peu corrélés.
+* Loisir et Wifi sont un peu corrélés positivement.
 
 Verifions le :
 
@@ -168,11 +174,11 @@ boxplot(DF.tmp$Facilité.resevation ~ DF.tmp$Wifi,
 points(tapply(DF.tmp$Facilité.resevation, DF.tmp$Wifi, mean), col='red')
 ```
 
-On remarque sur le boxplot qu'il semble y avoir une corrélation entre les notes attribuées à Wifi et à la Faclité de reservation, nous allons maintenant le verifier.
+On remarque sur le boxplot qu'il semble y avoir une corrélation entre les notes attribuées à Wifi et à la Faclité de réservation, nous allons maintenant le vérifier.
 
 **Test du chi-deux (Facilité.resevation/Wifi)** :
 
-On rejette $H_0$ car p-value<0.5 , ainsi on peut affirmer avec un risque de se tromper égal à 5% que ces deux variables sont corrélés.
+On rejette $H_0$ car p-value<0.5 , ainsi on peut affirmer avec un risque de se tromper de 5% que ces deux variables sont corrélés.
 
 ```{r}
 chisq.test(DF.tmp$Facilité.resevation, DF.tmp$Wifi, simulate.p.value=TRUE)
@@ -229,9 +235,9 @@ Le test du chi-deux montre que Loisir et Facilité.reservation sont corrélés, 
 
 ***
 
-Ci-dessous on peut voir une nette séparation entre les individus satisfaits et non satisfaits. Les individus satisfaits sont ceux s'étant amusé et ayant trouvé l'avion propre. À l'inverse les individus non satisfaits ont octroyé des notes plus basses concernant la propreté et les loisirs. On ne peut pas vraiment dire pour l'instant si la facilité de réservation et le wifi à bord influent sur la satisfaction du passager.
+Ci-dessous on peut voir une nette séparation entre les individus satisfaits et non satisfaits. Les individus satisfaits sont ceux s'étant amusé. À l'inverse les individus non satisfaits ont octroyé des notes plus basses concernant les loisirs. On ne peut pas vraiment dire pour l'instant si la facilité de réservation et le wifi à bord influent sur la satisfaction du passager.
 
-Ici par exemple l'individu n°70657 est satisfait, or il a mal noté les loisirs, la propreté, le wifi et la facilité de réservation. Sa satisfaction est probablement influencé par d'autres variables, qui sont qualitatives. On se penchera sur ce sujet lors de l'ACM. 
+Ici par exemple l'individu n°70657 est satisfait, or il a mal noté les loisirs, le wifi et la facilité de réservation. Sa satisfaction est probablement influencée par d'autres variables, qui sont qualitatives. On se penchera sur ce sujet lors de l'ACM. 
 
 ```{r}
 plot(res.pca,habillage=19, select="cos2 0.93", choix="ind",cex = 0.8)
@@ -243,15 +249,15 @@ L'individu qui contribue le plus à l'axe 1 y contribue à environ 0.01%.
 max(res.pca$ind$contrib[,1])
 ```
 
-Il n'y a pas d'individus atypiques, ce qui est normal car nos données sont des notes entre 0 et 5 et on a vu qu'elles étaient assez homogènes.
+Il n'y a pas d'individus atypiques, ce qui est normal car nos données sont des notes comprises entre 0 et 5 et on a vu qu'elles étaient homogènes.
 
 ***
 
-On peut voir premièrement que les 3 premiers axes expliquent bien l'inertie sur les données : Les axes étant orthogonaux, les axes 1, 2, 3 expliquent 27.14% + 16.87% + 15.47% = 59.48% de l'inertie.
+Premièrement, on peut voir  que les 3 premiers axes expliquent bien l'inertie sur les données : Les axes étant orthogonaux, ils expliquent 27.14% + 16.87% + 15.47% = 59.48% de l'inertie.
 
 Quant aux axes 1 et 2, ils prennent en compte 27.14% + 16.87% = 44.01% du jeu de données.
 
-On peut aussi voir que l'axe 2 et 3 expliquent à peu près autant l'un que l'autre l'inertie, ainsi on pourra aussi visualiser les données projetées sur le plan formé par l'axe 1 et 3 (même 2 et 3).
+On peut aussi voir que l'axe 2 et 3 expliquent à peu près autant l'un que l'autre l'inertie, ainsi on pourra aussi visualiser les données projetées sur le plan formé par l'axe 1 et 3 (voir 2 et 3).
 
 ```{r, echo=FALSE}
 barplot(res.pca$eig[,2], col=rainbow(n=14,alpha=0.6,start=0,end=0.33),main="Pourcentage d'inertie expliquée par chaque axe", ylab="Contribution en %")
