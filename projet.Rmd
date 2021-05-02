@@ -291,7 +291,7 @@ Ici on a le cercle de corrélation avec l'axe 2 et 3:
 plot(res.pca, select="cos2 0.6", choix="varcor", axes = c(2,3))
 ```
 
-Il n'y a pas grand-chose à interpréter car le barycentre des voyageurs satisfaits et non satisfaits sont tout les 2 proches du centre de gravité de ce plan.
+Il n'y a pas grand-chose à interpréter, car le barycentre des voyageurs satisfaits et non satisfaits sont tous les 2 proches du centre de gravité de ce plan.
 
 ```{r}
 plot(res.pca, invisible="ind", choix="ind", axes=c(2,3))
@@ -301,7 +301,7 @@ plot(res.pca, invisible="ind", choix="ind", axes=c(2,3))
 ### Transformations & double centrage
 
 
-Certains passagers ont attribué comme notes 0 pour certaines catégories du vol, on décide de ne pas faire de transformation par l'inverse car $\frac{1}{0}$ est un quotient indéterminé, ni de log-transformation car log(0) est indéterminé.
+Certains passagers ont attribué comme notes 0 pour certaines catégories du vol, on décide de ne pas faire de transformation par l'inverse, car $\frac{1}{0}$ est un quotient indéterminé, ni de log-transformation car log(0) est indéterminé.
 
 
 #### Transformation par racines carrée
@@ -310,8 +310,11 @@ Certains passagers ont attribué comme notes 0 pour certaines catégories du vol
 On effectue la transformation ”double centrage” sur les données transformées par racine carrée afin de voir si on peut faire gagner en contribution les premières composantes afin d'être plus précis lors de nos analyses.
 
 ```{r}
+# On récupère le notes dans le dataframe.
 DF.tmp <- sqrt(DF[,7:20])
-DF.tmp <- t(scale(t(DF.tmp)))
+# On centre et on réduit par rapport aux colones.
+DF.tmp <- scale(DF.tmp)
+# ACP sur les données transformées.
 res.pca <- PCA(DF.tmp, graph=FALSE)
 barplot(res.pca$eig[,2], col=rainbow(n=14,alpha=0.6,start=0.66,end=1),
         main="Pourcentage d'intertie expliquée par chaque axe\n(Données transformées par racine carrée)",
@@ -320,32 +323,33 @@ lines(seq(0.75,16.3,(16.3-0.75)/13), res.pca$eig[,2], type="b")
 text(seq(0.75,16.3,(16.3-0.75)/13), res.pca$eig[,2]-1, paste(round(res.pca$eig[,2],2),"%"), cex=0.7)
 ```
 
-Les transformations ne nous ont pas fait gagner plus d'informations au niveau des 2 premiers axes, on s'arrête là pour l'ACP.
+Les transformations ne nous ont pas fait gagner plus d'informations au niveau des 3 premiers axes, on s'arrête là pour l'ACP.
 
 
 ### Conclusion ACP
 
 
-Ici on a pu étudier l'impacte des variable quantitative sur la satisfaction des gens pour un trajet en avion.
+Ici, on a pu étudier l'impact des variables quantitatives sur la satisfaction des gens pour un trajet en avion.
 Il en est ressorti que les services proposés dans l'avion et le confort à bord sont des aspects primordiaux pour la satisfaction des voyageurs.
 
 
 ## ACM
 
+Intéressons-nous maintenant aux donnes qualitatives.
 
-```{r}
+```{r, echo=FALSE}
 DF.tmp<- DF[,c(1,2,4,5,23)]
 paged_table(DF.tmp)
 ```
 
-ACM 
+On effectue notre ACM :
 
 ```{r}
 res.mca <- MCA(DF.tmp, quali.sup = 5, graph=FALSE)
 ```
 
-D'abbord on peut observer que la première dimension influe à un peu plus de 30% quant à la 2, 3, 4 elles influent toutes autour de 20%.
-Il sera donc surement nécessaire de s'intéresser à ces 4 dimensions.
+On peut observer que la première dimension influe à un peu plus de 30%, quant à la 2, 3, 4, elles influent toutes autour de 20%.
+Il sera donc sûrement nécessaire de s'intéresser à ces 4 dimensions.
 
 ```{r, echo=FALSE}
 barplot(res.mca$eig[,2], col=rainbow(5))
@@ -360,38 +364,44 @@ for(i in 1:4){
 }
 ```
 
-En se referent aux cos2 (cos2 > 0.7) des barplots précédents : 
+En se référant aux cos2 (cos2 > 0.7) des barplots précédents :
 
 L'axe 1 oppose les passagers qui voyagent pour le business et les passagers qui voyagent pour un motif personnel. Ceux qui voyagent pour le travail sont en général plus satisfaits et ceux qui voyagent pour un motif personnel sont en général sans avis ou insatisfaits.
 
-L'axe 2 oppose les passagers loyaux aux non loyaux, il en résulte que le passagers non loyaux sont plus souvent insatisfaits et que les passagers loyaux.
+L'axe 2 oppose les passagers loyaux aux non-loyaux, il en résulte que les passagers non-loyaux sont plus souvent insatisfaits et que les passagers loyaux.
 
-Les 2 axes prennent aussi en compte a eux deux les voyageurs qui voyagent en business et en éco.
+Les 2 axes prennent aussi en compte à eux deux les voyageurs qui voyagent en business et en éco.
 
-On peut voir que les voyageurs en éco sont plus souvent insatisfait de leur voyage que ceux en business classe.
+On peut voir que les voyageurs en éco sont moins souvent satisfaits de leur voyage que ceux qui sont en business classe.
 
 ```{r}
 plot(res.mca, invisible="ind", axes=c(1,2))
 ```
 
-En se referent aux cos2 (cos2 > 0.7) pour l'axe 3 des barplots précédents : 
+En se référant aux cos2 (cos2 > 0.7) pour l'axe 3 des barplots précédents :
 
-On peut voir que l'axe 3 oppose les personnes de sexe different, on ne peut pas dire grand-chose quant à l'influence sur la satisfaction du client, on pourrait peut-être dire que les femmes sont un peu moins satisfaites mais c'est à vérifier.
+On peut voir que l'axe 3 oppose les personnes de sexe diffèrent, on ne peut pas dire grand-chose quant à l'influence sur la satisfaction du client, on pourrait peut-être dire que les femmes sont un peu moins satisfaites, mais c'est à vérifier.
+
+Vérifions le :
+
+```{r}
+chisq.test(table(DF$Genre, DF$Satisfaction))
+```
 
 ```{r}
 plot(res.mca, invisible="ind", axes=c(1,3))
 ```
 
-Pour prendre en compte les voyageurs classe éco plus on visualise sur le plan formé par l'axe 3 et 4
+Pour prendre en compte les voyageurs en classe éco plus on visualise sur le plan formé par l'axe 3 et 4.
 
-On peut voir ici que les voyageurs en classe Éco Plus sont moins satisfaits de leur voyages, ils sont très excentrés car ils représentes des données inhabituelles.
+On peut voir ici que les voyageurs en classe éco plus sont moins satisfaits de leur voyages, ils sont très excentrés car ils représentent des données inhabituelles.
 
 
 ```{r}
 plot(res.mca, invisible="ind", axes=c(3,4))
 ```
 
-Rappelez-vous de l'individu n°70657, il était satisfait de son vol malgré les mauvaises notes attribués aux différentes catégories. On voit qu'il possède toutes les modalités influant positivement sur la satisfaction. Ceci montre bien que l'analyse des données qualitatives est importante car on a eu des informations qu'on ne pouvait pas avoir avec l'ACP.
+Rappelez-vous de l'individu n°70657, il était satisfait de son vol malgré les mauvaises notes attribuées aux différentes catégories. On voit qu'il possède toutes les modalités influant positivement sur la satisfaction. Ceci montre bien que l'analyse des données qualitatives est importante, car on a eu des informations qu'on ne pouvait pas avoir avec l'ACP.
 
 ```{r, echo=FALSE}
 paged_table(DF.tmp[70657,])
