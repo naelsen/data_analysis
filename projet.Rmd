@@ -435,6 +435,7 @@ Dans cette partie, on considère l'âge comme une variable qualitative à quatre
 * 61+ ans
 
 Avant la transformation, on vérifie si l'âge a un impact sur la satisfaction des passagers.
+
 ```{r, echo=FALSE}
 # On recupère l'âge et la satisfaction des individus.
 tab = table(data.frame(DF$Age,DF$Satisfaction))
@@ -460,11 +461,11 @@ change_age <- function(x){
     return("61+")
 }
 DF.tmp = DF[,c(2:5)]
-# On l'applique à tous les individus
+# On applique la fonction change_age sur chaque ligne de la colonne Age.
 DF.tmp$Age = paste(lapply(DF.tmp$Age,change_age))
 ```
 
-On a un nouveau dataframe pour les variables qualitatives qui nous serviront a la creation des profils:
+On a un nouveau dataframe pour les variables qualitatives qui nous serviront à la création des profils :
 
 ```{r, echo=FALSE}
 paged_table(DF.tmp)
@@ -476,29 +477,37 @@ Nous allons maintenant regrouper les individus par groupes en utilisant les diff
 profils = data.frame(table(DF.tmp))
 ```
 
-On ne garde que les profils qui compte plus de 30 personnes d'avoir des résultats intéréssant a analyser.
-On compte maintenant 68 profils.
+On ne garde que les profils qui compte plus de 30 personnes afin d'avoir des résultats intéressants a analyser.
+
+On compte maintenant 38 profils.
+
 ```{r, echo=FALSE}
 profils = profils[profils[,5]>=30,]
+# On renumérote correctement les lignes du dataframe.
 row.names(profils) = paste(1:dim(profils)[1])
 paged_table(profils)
 ```
 
 ```{r, echo=FALSE}
-# On donne les noms des profils selon chaque variable qualiltative
+# On créer un liste de tout les profils.
 profils = paste(profils[,1], profils[,2], profils[,3], profils[,4], sep="/")
-# On recupère seulement les colonnes des notes attribués pour notre clusteing
+# On recupère les notes.
 DF.notes = DF[,7:20]
 col_name = colnames(DF.notes)
+# On attribue un profil à chaque individu.
 DF.notes = cbind(paste(DF.tmp[,1], DF.tmp[,2], DF.tmp[,3], DF.tmp[,4], sep="/"), DF.notes)
+# On renomme correctement les colonnes.
 colnames(DF.notes) = c("profil", col_name)
 ```
 
-On fait la moyenne des notes de chaque catégories :
+On fait la moyenne des notes de chaque profil :
 
 ```{r,echo=FALSE}
 bool_profil = DF.notes$profil %in% profils
+# On récupère les profils qui sont dans notre dataframe, car,
+# n'oublions pas qu'on n'étudie pas les profils regroupant moins de 30 personnes.
 DF.notes=DF.notes[bool_profil,]
+# Moyenne des notes de chaque profil.
 DF.agg=aggregate.data.frame(x=DF.notes[,-1], by=list(DF.notes$profil), FUN=mean)[,-1]
 row.names(DF.agg)=profils
 paged_table(DF.agg)
@@ -508,78 +517,115 @@ paged_table(DF.agg)
 ### Hierarchique
 
 
-On commence par faire un clustering hierarchique pour déterminer le nombre de groupes ($K$) idéal.
+On commence par faire un clustering hiérarchique pour déterminer le nombre de groupes ($K$) idéal.
 
-$K=6$ semble être convenable.
+$K=6$ est un bon compromis.
 
 ```{r}
 K=6
-DF.agg.dist = dist(DF.agg, method="euclidean") # "manhattan" (L1), "euclidean" (L2), "maximum" (L.infini), "minkowski", p = truc (L.truc)
+DF.agg.dist = dist(DF.agg, method="euclidean")
 cah.ward = hclust(DF.agg.dist, method="ward.D2")
 par(cex.main=2, cex=0.2)
 plot(cah.ward, hang=-1)
 rect.hclust(cah.ward,K)
 ```
 
-On a donc réussis a créer 6 groupes de profils similaire sur les 68 profils qu'on est en train d'étudier.
+On a donc réussis a créer 6 groupes de profils similaire sur les 38 profils qu'on est en train d'étudier.
 
 Penchons nous sur la composition de ces groupes :
 
-```{r}
+```{r, echo=FALSE}
 groupes.cah <-cutree(cah.ward, K)
 paged_table(data.frame(sort(groupes.cah)))
 ```
 
-*Le groupe 1 rassemble des individus en business classe.
+Dans le tableau ci-dessus on peut voir que :
 
-*Le groupe 2 réunit les individus en business classe voyageant pour le business.
+* Le groupe 1 rassemble des individus en business classe.
 
-*Le groupe 3 regroupe les clients fidèles.
+* Le groupe 2 réunit les individus en business classe voyageant pour le business.
 
-*Le groupe 4 est particulier et rassemble seulement deux profils, en particulier, des profils déloyaux qui voyagent en classe éco.
+* Le groupe 3 regroupe les clients fidèles.
 
-*Le groupe 5 réunit des passagers majoritairement en dessous de 39 ans voyageant en classe éco ou éco plus.
+* Le groupe 4 est particulier et rassemble seulement deux profils, en particulier, des profils déloyaux qui voyagent en classe éco.
 
-*Le groupe 6 regroupe les passagers de 39 ans et plus, voyageant en éco ou éco plus.
+* Le groupe 5 réunit des passagers majoritairement en dessous de 39 ans voyageant en classe éco ou éco plus.
+
+* Le groupe 6 regroupe les passagers de 39 ans et plus, voyageant en éco ou éco plus.
 
 ***
 
-```{r}
+```{r, echo=FALSE}
 groupes.cah <-cutree(cah.ward, K)
+
 Means_groupes.cah <- matrix(NA, nrow=K, ncol=dim(DF.notes)[2])
 colnames(Means_groupes.cah)=c(colnames(DF.notes[,-1]),"satisfied")
 rownames(Means_groupes.cah)= paste("Groupe",1:K,sep="_")
 DF.tmp = data.frame(DF.notes,(DF[bool_profil,23]=="satisfied")*1)
 for (i in 1:K) Means_groupes.cah[i,] <- colMeans(DF.tmp[DF.tmp$profil %in% rownames(data.frame(groupes.cah[groupes.cah==i])),][,-1])
+```
+
+Ici, on ne va pas s'intéresser à décrire toutes les moyennes des notes par cluster.
+
+On va s'intéresser à la fréquence des individus satisfaits par cluster.
+
+On voit en effet que les fréquences sont différentes, ainsi certains groupes sont plus satisfait que d'autres.
+
+Par exemple, il y a un cluster ou la fréquence de satisfaction est de 73%, ainsi un client de ce cluster aura tendance à être satisfait, à l'inverse un client du cluster ou la fréquence de satisfaction est de 7% aura tendance à ne pas être satisfait.
+
+On a donc réussi à trouver des groupes de profils qui ont tendance à être satisfait et d'autre non.
+
+```{r}
 paged_table(data.frame(Means_groupes.cah))
 ```
 
-
-
-Le clustering hiérarchique nous permet de determiner le nombre de groupes idéal : $K = 6$. Les notes attribuées selon les différentes groupes ne sont pas significativement différentes.
+Le clustering hiérarchique nous permet de déterminer le nombre de groupes qui semble idéal : $K = 6$. Les notes attribuées selon les différents groupes ne sont pas significativement différentes.
 
 
 ### Kmeans
 
+
+On peut vérifié si le $K=6$ mis en évidence par le clustering cah était un bon compromis.
+
+En effet, on voit que le pourcentage d'inertie intra-classe arrête d'augmenter de façon accrue à partir d'environ $K=6$, on aurait pu prendre $K$ un peu plus grand, mais pourquoi s'embêter avec un nombre de clusters trop élevé quand l'objectif est de regrouper au maximum sans perdre trop d'inertie.
+
+```{r}
+inertie.intra <-rep(0,times=37)
+for(k in 1:37){
+  kmeans.result <-kmeans(DF.agg,centers=k,nstart=100)
+  inertie.intra[k] <- kmeans.result$tot.withinss/kmeans.result$totss
+}
+
+plot(1:37,inertie.intra,type="b",xlab="K",ylab="Inertie intra-classe",
+     main="Pourcentage d'inertie-classe selon le nombre de classe")
+abline(v=6, col="red")
+```
+
 On réalise ensuite le Kmeans, avec le meme nombre de groupes qu'avec le CAH.
 
 ```{r}
-Means_groupes.kmeans <- matrix(NA, nrow=K, ncol=dim(DF.notes)[2])
 res.kmeans = kmeans(DF.agg, centers=Means_groupes.cah[,-15])
-for (i in 1:K) Means_groupes.kmeans[i,] <- colMeans(DF.tmp[DF.tmp$profil %in% rownames(data.frame(res.kmeans$cluster[res.kmeans$cluster==i])),][,-1])
+groupes.kmeans = res.kmeans$cluster
 
+Means_groupes.kmeans <- matrix(NA, nrow=K, ncol=dim(DF.notes)[2])
 colnames(Means_groupes.kmeans)=c(colnames(DF.notes[,-1]),"satisfied")
 rownames(Means_groupes.kmeans)= paste("Groupe",1:K,sep="_")
-groupes.kmeans = res.kmeans$cluster
 DF.tmp = data.frame(DF.notes,(DF[bool_profil,23]=="satisfied")*1)
 for (i in 1:K) Means_groupes.kmeans[i,] <- colMeans(DF.tmp[DF.tmp$profil %in% rownames(data.frame(groupes.kmeans[groupes.kmeans==i])),][,-1])
+```
 
+On voit que l'algorithme du k-means a convergé vers les mêmes groupes que celui du clustering cah.
+
+```{r, echo=FALSE}
+table(groupes.cah,groupes.kmeans)
+```
+
+Vérifions :
+
+```{r, echo=FALSE}
 paged_table(data.frame(Means_groupes.kmeans))
 ```
 
-```{r}
-table(groupes.cah,groupes.kmeans)
-```
 
 ### Visualisation 
 
