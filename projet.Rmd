@@ -21,6 +21,8 @@ library(factoextra)
 
 # Introduction des données
 
+Le jeu de données qui sera étudié dans ce projet décrit le relevé de satisfaction de passagers en avion. Il contient les notes attribuées (entre 0 et 5) pour différents services ainsi que les catégories et profil des voyageur.
+Tout ceci dans le but de prédir leur satisfaction.
 
 On voit que les deux premières colonnes (X & id) sont inutiles pour nos analyses, on va donc les supprimer.
 
@@ -57,6 +59,7 @@ paged_table(DF)
 * Pour finir, la proportion de voyageurs neutres ou insatisfaits et légèrement supérieure à celle des voyageurs satisfaits.
 
 ```{r, echo=FALSE}
+# On affiche les proportions des modalités sous forme de camembert.
 par(fig=c(0,1/2,1/2,1))
 pie(table(DF$Genre), col = c("pink","blue"),cex=0.8)
 par(fig=c(0,1/2,0,1/2),new=TRUE)
@@ -69,7 +72,7 @@ par(fig=c(1/3-1/5,2/3+1/5,1/3-1/5,2/3+1/5),new=TRUE)
 pie(table(DF$Satisfaction), col=c("red","green"), cex=0.8)
 ```
 
-Ci-dessous on voit que les notes sont assez homogènes, elles ont toutes :
+ON s'intéresse aux notes attribuées par les passagers. Ci-dessous on voit que les notes sont assez homogènes, elles ont toutes :
 
 * Un 1er quartile égal à 2 ou 3.
 
@@ -106,9 +109,9 @@ points(mean(DF$Retard.arrivé), col='red')
 
 # Analyse des données
 
+On commence notre analyse par une ACP sur les variables quantitatives.
 
 ## ACP
-
 
 On récupère toutes les données quantitatives et la satisfaction.
 
@@ -142,7 +145,7 @@ Ainsi, on va faire notre ACP sur les notes.
 Ainsi, il est important d'expliquer le modèle avec des variables bien representées dans le plan.
 Pour cela on veillera à ne pas prendre les variables et individus ayant un cos2 trop bas. Ici on choisit un cos2 égale à 0.68 afin qu'il ne soit pas trop bas et qu'on ait au moins 3 variables à utiliser afin d'expliquer nos individus sur les axes 1 et 2.
 
-Ici l'axe 1 va faire le contraste entre le confort à bord (droite) et l'inconfort (gauche), tandis que l'axe 2 fera le contraste entre les aspects techniques pour ce qui concerne le vol.
+Ici l'axe 1 va opposer le confort à bord (droite) et l'inconfort (gauche), tandis que l'axe 2 fera le contraste sur les aspects techniques pour ce qui concerne le vol.
 
 On peut voir que les variables quantitatives supplémentaires ne sont pas du tout interprétables (flèches en bleu) .
 
@@ -223,7 +226,7 @@ points(tapply(DF.tmp$Loisir, DF.tmp$Facilité.resevation, mean), col='red')
 
 On vérifie une nouvelle fois la corrélation entre les deux variables.
 
-**Chi-deux (Loisir/Facilité.resevartion) :**
+**Test du Chi-deux (Loisir/Facilité.resevartion) :**
 
 On rejette $H_0$ car p-value<0.5 , ainsi on peut affirmer avec un risque de se tromper égal à 5% que ces deux variables sont corrélés.
 
@@ -252,6 +255,8 @@ max(res.pca$ind$contrib[,1])
 Il n'y a pas d'individus atypiques, ce qui est normal car nos données sont des notes comprises entre 0 et 5 et on a vu qu'elles étaient homogènes.
 
 ***
+
+Observons maintenant quelle part des données expliquent les composantes.
 
 Premièrement, on peut voir  que les 3 premiers axes expliquent bien l'inertie sur les données : Les axes étant orthogonaux, ils expliquent 27.14% + 16.87% + 15.47% = 59.48% de l'inertie.
 
@@ -301,7 +306,7 @@ plot(res.pca, invisible="ind", choix="ind", axes=c(2,3))
 ### Transformations & double centrage
 
 
-Certains passagers ont attribué comme notes 0 pour certaines catégories du vol, on décide de ne pas faire de transformation par l'inverse, car $\frac{1}{0}$ est un quotient indéterminé, ni de log-transformation car log(0) est indéterminé.
+Certains passagers ont attribué comme notes 0 pour certaines catégories du vol, on décide de ne pas faire de transformation par l'inverse, car $\frac{1}{0}$ est un quotient indéterminé, ni de log-transformation car $\log(0)$ est indéterminé.
 
 
 #### Transformation par racines carrée
@@ -330,12 +335,12 @@ Les transformations ne nous ont pas fait gagner plus d'informations au niveau de
 
 
 Ici, on a pu étudier l'impact des variables quantitatives sur la satisfaction des gens pour un trajet en avion.
-Il en est ressorti que les services proposés dans l'avion et le confort à bord sont des aspects primordiaux pour la satisfaction des voyageurs.
+Il en est ressorti que les services proposés dans l'avion et le confort à bord sont des aspects primordiaux pour la satisfaction des voyageurs, mais que ce n'étaient pas les seuls arguments à prendre en compte.
 
 
 ## ACM
 
-Intéressons-nous maintenant aux donnes qualitatives.
+Intéressons-nous maintenant aux donnes qualitatives avec une analyse de composante multiples.
 
 ```{r, echo=FALSE}
 DF.tmp<- DF[,c(1,2,4,5,23)]
@@ -348,7 +353,7 @@ On effectue notre ACM :
 res.mca <- MCA(DF.tmp, quali.sup = 5, graph=FALSE)
 ```
 
-On peut observer que la première dimension influe à un peu plus de 30%, quant à la 2, 3, 4, elles influent toutes autour de 20%.
+On peut observer que la première dimension influe à un peu plus de 30%, quant aux dimensions 2, 3, 4, elles influent toutes autour de 20%.
 Il sera donc sûrement nécessaire de s'intéresser à ces 4 dimensions.
 
 ```{r, echo=FALSE}
@@ -408,7 +413,7 @@ paged_table(DF.tmp[70657,])
 ```
 
 
-### Conclusion
+### Conclusion ACM
 
 
 D'après l'ACM :
@@ -425,7 +430,7 @@ D'après l'ACM :
 
 ## Clustering 
 
-Nous allons maintenant appliquer les méthodes de clustering vues en cours. Le regroupement "d'individus" ne sera pas très intéressant à réaliser, nous allons plutôt définir des profils avec l'ensembles des modalités. 
+Nous allons maintenant appliquer les méthodes de clustering vues en cours. Le regroupement "d'individus" ne sera pas très intéressant à réaliser, nous allons plutôt définir des profils avec l'ensembles des modalités. Ces profils pourront être regroupés en clusters. 
 
 Dans cette partie, on considère l'âge comme une variable qualitative à quatres modalités :
 
@@ -465,7 +470,7 @@ DF.tmp = DF[,c(2:5)]
 DF.tmp$Age = paste(lapply(DF.tmp$Age,change_age))
 ```
 
-On a un nouveau dataframe pour les variables qualitatives qui nous serviront à la création des profils :
+On a un nouveau dataframe pour les catégories d'âge comme variable qualitative, il nous permettra de créer les différents profils :
 
 ```{r, echo=FALSE}
 paged_table(DF.tmp)
@@ -477,9 +482,9 @@ Nous allons maintenant regrouper les individus par groupes en utilisant les diff
 profils = data.frame(table(DF.tmp))
 ```
 
-On ne garde que les profils qui compte plus de 30 personnes afin d'avoir des résultats intéressants a analyser.
+On ne garde que les profils qui comptent plus de 30 personnes afin d'avoir des résultats intéressants a analyser.
 
-On compte maintenant 38 profils.
+On compte maintenant 38 profils dont on donne la liste ci-dessous.
 
 ```{r, echo=FALSE}
 profils = profils[profils[,5]>=30,]
@@ -514,7 +519,7 @@ paged_table(DF.agg)
 ```
 
 
-### Hierarchique
+### CAH
 
 
 On commence par faire un clustering hiérarchique pour déterminer le nombre de groupes ($K$) idéal.
@@ -523,14 +528,16 @@ $K=6$ est un bon compromis.
 
 ```{r}
 K=6
+# On applique la méthode euclidienne pour avoir les meilleures distances en 2D
 DF.agg.dist = dist(DF.agg, method="euclidean")
 cah.ward = hclust(DF.agg.dist, method="ward.D2")
-par(cex.main=2, cex=0.2)
+# On ajuste la taille des caractères pour un meilleur affichage 
+par(cex.main=3, cex=0.4)
 plot(cah.ward, hang=-1)
 rect.hclust(cah.ward,K)
 ```
 
-On a donc réussis a créer 6 groupes de profils similaire sur les 38 profils qu'on est en train d'étudier.
+On a donc réussi à créer 6 groupes de profils similaires sur les 38 profils qu'on est en train d'étudier.
 
 Penchons nous sur la composition de ces groupes :
 
@@ -565,15 +572,15 @@ DF.tmp = data.frame(DF.notes,(DF[bool_profil,23]=="satisfied")*1)
 for (i in 1:K) Means_groupes.cah[i,] <- colMeans(DF.tmp[DF.tmp$profil %in% rownames(data.frame(groupes.cah[groupes.cah==i])),][,-1])
 ```
 
-Ici, on ne va pas s'intéresser à décrire toutes les moyennes des notes par cluster.
+Il n'est pas nécessaire de décrire toutes les moyennes des notes par cluster.
 
 On va s'intéresser à la fréquence des individus satisfaits par cluster.
 
-On voit en effet que les fréquences sont différentes, ainsi certains groupes sont plus satisfait que d'autres.
+On voit que les fréquences diffèrent selon les groupes, ainsi, certains groupes sont en moyenne plus satisfait que d'autres.
 
-Par exemple, il y a un cluster ou la fréquence de satisfaction est de 73%, ainsi un client de ce cluster aura tendance à être satisfait, à l'inverse un client du cluster ou la fréquence de satisfaction est de 7% aura tendance à ne pas être satisfait.
+Par exemple, le cluster n°3 possèdela fréquence de satisfaction la plus élevé avec près de 73%, ainsi un individu ayant un profil associé à ce cluster aura tendance à être satisfait. À l'inverse, un passager dont le profil appartient au cluster n°4, où la fréquence de satisfaction est de 7%, aura tendance à être neutre ou insatisfait.
 
-On a donc réussi à trouver des groupes de profils qui ont tendance à être satisfait et d'autre non.
+On a donc réussi à trouver des groupes de profils qui diffèrent par la fréquence de satisfaction des individus qui le constituent.
 
 ```{r}
 paged_table(data.frame(Means_groupes.cah))
@@ -587,7 +594,7 @@ Le clustering hiérarchique nous permet de déterminer le nombre de groupes qui 
 
 On peut vérifié si le $K=6$ mis en évidence par le clustering cah était un bon compromis.
 
-En effet, on voit que le pourcentage d'inertie intra-classe arrête d'augmenter de façon accrue à partir d'environ $K=6$, on aurait pu prendre $K$ un peu plus grand, mais pourquoi s'embêter avec un nombre de clusters trop élevé quand l'objectif est de regrouper au maximum sans perdre trop d'inertie.
+En effet, on voit que la diminution de l'inertie intra-classe est moins significative à partir de $K=6$, on aurait pu prendre $K$ un peu plus grand, mais pourquoi s'embêter avec un nombre de clusters trop élevé quand l'objectif est de regrouper au maximum sans perdre trop d'inertie.
 
 ```{r}
 inertie.intra <-rep(0,times=37)
@@ -597,7 +604,7 @@ for(k in 1:37){
 }
 
 plot(1:37,inertie.intra,type="b",xlab="K",ylab="Inertie intra-classe",
-     main="Pourcentage d'inertie-classe selon le nombre de classe")
+     main="Pourcentage d'inertie intra-classe selon le nombre de classe")
 abline(v=6, col="red")
 ```
 
@@ -614,7 +621,7 @@ DF.tmp = data.frame(DF.notes,(DF[bool_profil,23]=="satisfied")*1)
 for (i in 1:K) Means_groupes.kmeans[i,] <- colMeans(DF.tmp[DF.tmp$profil %in% rownames(data.frame(groupes.kmeans[groupes.kmeans==i])),][,-1])
 ```
 
-On voit que l'algorithme du k-means a convergé vers les mêmes groupes que celui du clustering cah.
+On voit que l'algorithme du k-means nous donne les mêmes groupes que celui du clustering hiérarchique.
 
 ```{r, echo=FALSE}
 table(groupes.cah,groupes.kmeans)
@@ -629,8 +636,12 @@ paged_table(data.frame(Means_groupes.kmeans))
 
 ### Visualisation 
 
-On représente les clusters en 2D à l'aide des composantes principales. On remarque que certains clusters se chevauchent
-```{r}
+On représente les clusters en 2D à l'aide des composantes principales. On remarque que certains clusters se chevauchent, cette représentation montre l'emplacement de chacun des profils et du groupe auquel il appartient. 
+
+On remarque qu'un groupe numéro 3 est isolé du reste des observations, c'est celui possédant le plus faible taux de satisfaction (0.07%). Sur le graphe des principales composantes (axes 1 et 2), ce groupe se situe à gauche, or on a vu dans l'ACP que les individus les moins satisfait se situaient bel et bien à gauche de l'axe 1.
+
+
+```{r, echo=FALSE}
 fviz_cluster(res.kmeans, data = DF.agg,
              palette = rainbow(K), 
              geom = "point",
@@ -638,5 +649,4 @@ fviz_cluster(res.kmeans, data = DF.agg,
              ggtheme = theme_bw(),
              main = "Kmeans : Représentation des clusters")
 ```
-
 
