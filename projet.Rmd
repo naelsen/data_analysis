@@ -16,6 +16,10 @@ library(FactoMineR)
 library(MASS)
 library(rmarkdown)
 library(factoextra)
+library(cluster)
+library(rpart)
+library(rpart.plot)
+library(randomForest)
 ```
 
 
@@ -27,25 +31,30 @@ Tout ceci dans le but de prédir leur satisfaction.
 On voit que les deux premières colonnes (X & id) sont inutiles pour nos analyses, on va donc les supprimer.
 
 ```{r}
-DF <- read.csv("data/train.csv")
+DF.train <- read.csv("data/train.csv")
+DF.test <- read.csv("data/test.csv")
 # On supprime les lignes ou il y a des valeurs manquantes.
-DF <- DF[!rowMeans(is.na(DF)*1) > 0,]
-str(DF)
+DF.train <- DF.train[!rowMeans(is.na(DF.train)*1) > 0,]
+DF.test <- DF.test[!rowMeans(is.na(DF.test)*1) > 0,]
+str(DF.train)
 ```
 
 ```{r}
 # On retire les colonnes inutiles.
-DF <- DF[,c(-1,-2)]
+DF.train <- DF.train[,c(-1,-2)]
+DF.test <- DF.test[,c(-1,-2)]
 # On modifie le nom des lignes pour le style ;-)
-row.names(DF) <- paste("n°", sep="", 1:dim(DF)[1]) 
+row.names(DF.train) <- paste("n°", sep="", 1:dim(DF.train)[1]) 
+row.names(DF.test) <- paste("n°", sep="", 1:dim(DF.test)[1]) 
 # On renomme les colonnes pour avoir des noms moins longs (Utile pour l'affichage).
-colnames(DF) <- c("Genre", "Fidélité", "Age", "Type.du.vol", "Classe", "Distance", "Wifi", "Horaire.pratique", "Facilité.resevation", "Emplacement.porte", "Nourriture", "Enregistrement.en.ligne", "Siege.confort", "Loisir", "On.board.service", "Espace.jambe", "Gestion.bagage", "Checkin.service", "Inflight.service", "Propreté", "Retard.depart", "Retard.arrivé", "Satisfaction")
+colnames(DF.train) <- c("Genre", "Fidélité", "Age", "Type.du.vol", "Classe", "Distance", "Wifi", "Horaire.pratique", "Facilité.resevation", "Emplacement.porte", "Nourriture", "Enregistrement.en.ligne", "Siege.confort", "Loisir", "On.board.service", "Espace.jambe", "Gestion.bagage", "Checkin.service", "Inflight.service", "Propreté", "Retard.depart", "Retard.arrivé", "Satisfaction")
+colnames(DF.test) <- c("Genre", "Fidélité", "Age", "Type.du.vol", "Classe", "Distance", "Wifi", "Horaire.pratique", "Facilité.resevation", "Emplacement.porte", "Nourriture", "Enregistrement.en.ligne", "Siege.confort", "Loisir", "On.board.service", "Espace.jambe", "Gestion.bagage", "Checkin.service", "Inflight.service", "Propreté", "Retard.depart", "Retard.arrivé", "Satisfaction")
 ```
 
 Petit avant gout des données :
 
 ```{r, echo=FALSE}
-paged_table(DF)
+paged_table(DF.train)
 ```
 
 * Il y a autant d'hommes que de femmes dans notre jeu de données.
@@ -61,15 +70,15 @@ paged_table(DF)
 ```{r, echo=FALSE}
 # On affiche les proportions des modalités sous forme de camembert.
 par(fig=c(0,1/2,1/2,1))
-pie(table(DF$Genre), col = c("pink","blue"),cex=0.8)
+pie(table(DF.train$Genre), col = c("pink","blue"),cex=0.8)
 par(fig=c(0,1/2,0,1/2),new=TRUE)
-pie(table(DF$Fidélité), col = c("red","green"),cex=0.8)
+pie(table(DF.train$Fidélité), col = c("red","green"),cex=0.8)
 par(fig=c(1/2,1,1/2,1),new=TRUE)
-pie(table(DF$Type.du.vol), col = rainbow(2), cex=0.8)
+pie(table(DF.train$Type.du.vol), col = rainbow(2), cex=0.8)
 par(fig=c(1/2,1,0,1/2),new=TRUE)
-pie(table(DF$Classe), col = rainbow(3),cex=0.8)
+pie(table(DF.train$Classe), col = rainbow(3),cex=0.8)
 par(fig=c(1/3-1/5,2/3+1/5,1/3-1/5,2/3+1/5),new=TRUE)
-pie(table(DF$Satisfaction), col=c("red","green"), cex=0.8)
+pie(table(DF.train$Satisfaction), col=c("red","green"), cex=0.8)
 ```
 
 ON s'intéresse aux notes attribuées par les passagers. Ci-dessous on voit que les notes sont assez homogènes, elles ont toutes :
@@ -83,7 +92,7 @@ ON s'intéresse aux notes attribuées par les passagers. Ci-dessous on voit que 
 * Les moyennes pour les notes vont de 2.73 à 3.64.
 
 ```{r, echo=FALSE}
-summary(DF[,7:20])
+summary(DF.train[,7:20])
 ```
 
 On peut aussi observer les autres variables quantitatives :
@@ -96,14 +105,14 @@ On peut aussi observer les autres variables quantitatives :
 
 ```{r,echo=FALSE}
 par(mfrow=c(2,2))
-boxplot(DF$Age, main="Âge")
-points(mean(DF$Age), col='red')
-boxplot(DF$Distance, main="Distance")
-points(mean(DF$Distance), col='red')
-boxplot(DF$Retard.depart, main="Retard depart")
-points(mean(DF$Retard.depart), col='red')
-boxplot(DF$Retard.arrivé, main="Retard arrivée")
-points(mean(DF$Retard.arrivé), col='red')
+boxplot(DF.train$Age, main="Âge")
+points(mean(DF.train$Age), col='red')
+boxplot(DF.train$Distance, main="Distance")
+points(mean(DF.train$Distance), col='red')
+boxplot(DF.train$Retard.depart, main="Retard depart")
+points(mean(DF.train$Retard.depart), col='red')
+boxplot(DF.train$Retard.arrivé, main="Retard arrivée")
+points(mean(DF.train$Retard.arrivé), col='red')
 ```
 
 
@@ -111,13 +120,15 @@ points(mean(DF$Retard.arrivé), col='red')
 
 On commence notre analyse par une ACP sur les variables quantitatives.
 
-## ACP
+## Méthodes fatorielles
+
+### ACP
 
 On récupère toutes les données quantitatives et la satisfaction.
 
 ```{r}
 # On récupère Âge/Distance du vol/Retard Depart/Retard Arrivé (colonne 3/6/21/22), les notes (colonnes 7 à 20) et la satisfaction (colonne 23)
-DF.tmp <- DF[,c(3,6,21,22,7:20,23)]
+DF.tmp <- DF.train[,c(3,6,21,22,7:20,23)]
 res.pca <- PCA(DF.tmp, quanti.sup=1:4, quali.sup=19, graph=FALSE)
 ```
 
@@ -125,9 +136,9 @@ Il est évident de penser que plus les notes attribuées par les voyageurs sont 
 
 ```{r, echo=FALSE}
 # On recupère les notes dans le dataframe, et on en fait la moyenne.
-mean_notes <-rowMeans(DF[,7:20])
+mean_notes <-rowMeans(DF.train[,7:20])
 # Table de contingence pour les notes moyennes et la satisfaction.
-tmp = table(as.factor(mean_notes),DF$Satisfaction)
+tmp = table(as.factor(mean_notes),DF.train$Satisfaction)
 barplot((tmp/rowSums(tmp))[,2], # Fréquence de satisfaction.
          width=rowSums(tmp),    # Taille des groupes.
          col=rainbow(n = dim(tmp)[1],alpha=0.8,start=0,end=0.4),
@@ -303,20 +314,19 @@ plot(res.pca, invisible="ind", choix="ind", axes=c(2,3))
 ```
 
 
-### Transformations & double centrage
+#### Transformations & double centrage
 
 
-Certains passagers ont attribué comme notes 0 pour certaines catégories du vol, on décide de ne pas faire de transformation par l'inverse, car $\frac{1}{0}$ est un quotient indéterminé, ni de log-transformation car $\log(0)$ est indéterminé.
+**Certains passagers ont attribué comme notes 0 pour certaines catégories du vol, on décide de ne pas faire de transformation par l'inverse, car $\frac{1}{0}$ est un quotient indéterminé, ni de log-transformation car $\log(0)$ est indéterminé.**
 
 
-#### Transformation par racines carrée
-
+***
 
 On effectue la transformation ”double centrage” sur les données transformées par racine carrée afin de voir si on peut faire gagner en contribution les premières composantes afin d'être plus précis lors de nos analyses.
 
 ```{r}
 # On récupère le notes dans le dataframe.
-DF.tmp <- sqrt(DF[,7:20])
+DF.tmp <- sqrt(DF.train[,7:20])
 # On centre et on réduit par rapport aux colones.
 DF.tmp <- scale(DF.tmp)
 # ACP sur les données transformées.
@@ -331,23 +341,23 @@ text(seq(0.75,16.3,(16.3-0.75)/13), res.pca$eig[,2]-1, paste(round(res.pca$eig[,
 Les transformations ne nous ont pas fait gagner plus d'informations au niveau des 3 premiers axes, on s'arrête là pour l'ACP.
 
 
-### Conclusion ACP
+#### Conclusion ACP
 
 
 Ici, on a pu étudier l'impact des variables quantitatives sur la satisfaction des gens pour un trajet en avion.
-Il en est ressorti que les services proposés dans l'avion et le confort à bord sont des aspects primordiaux pour la satisfaction des voyageurs, mais que ce n'étaient pas les seuls arguments à prendre en compte.
+Il en est ressorti que les services proposés dans l'avion et le confort à bord sont des aspects primordiaux pour la satisfaction des voyageurs, mais que cela n'expliquait pas totalement les données.
 
 
-## ACM
+### ACM
 
-Intéressons-nous maintenant aux donnes qualitatives avec une analyse de composante multiples.
+Intéressons-nous maintenant aux données qualitatives.
 
 ```{r, echo=FALSE}
-DF.tmp<- DF[,c(1,2,4,5,23)]
+DF.tmp<- DF.train[,c(1,2,4,5,23)]
 paged_table(DF.tmp)
 ```
 
-On effectue notre ACM :
+On effectue une ACM :
 
 ```{r}
 res.mca <- MCA(DF.tmp, quali.sup = 5, graph=FALSE)
@@ -387,10 +397,13 @@ En se référant aux cos2 (cos2 > 0.7) pour l'axe 3 des barplots précédents :
 
 On peut voir que l'axe 3 oppose les personnes de sexe diffèrent, on ne peut pas dire grand-chose quant à l'influence sur la satisfaction du client, on pourrait peut-être dire que les femmes sont un peu moins satisfaites, mais c'est à vérifier.
 
-Vérifions le :
+Vérifions le graphiquement:
+
+Sur le barplot on voit donc que, pour notre jeu de données, les hommes sont un peu plus satisfait en général que les femmes. Mais rien de significativement très différent.
 
 ```{r}
-chisq.test(table(DF$Genre, DF$Satisfaction))
+tab = table(DF.train$Genre, DF.train$Satisfaction)
+barplot(tab/rowSums(tab), beside=TRUE, col=c("pink","blue"), legend.text=c("Female","Male"))
 ```
 
 ```{r}
@@ -413,7 +426,7 @@ paged_table(DF.tmp[70657,])
 ```
 
 
-### Conclusion ACM
+#### Conclusion ACM
 
 
 D'après l'ACM :
@@ -428,7 +441,7 @@ D'après l'ACM :
 
 
 
-## Clustering 
+## Classification non-superivée
 
 Nous allons maintenant appliquer les méthodes de clustering vues en cours. Le regroupement "d'individus" ne sera pas très intéressant à réaliser, nous allons plutôt définir des profils avec l'ensembles des modalités. Ces profils pourront être regroupés en clusters. 
 
@@ -443,7 +456,7 @@ Avant la transformation, on vérifie si l'âge a un impact sur la satisfaction d
 
 ```{r, echo=FALSE}
 # On recupère l'âge et la satisfaction des individus.
-tab = table(data.frame(DF$Age,DF$Satisfaction))
+tab = table(data.frame(DF.train$Age,DF.train$Satisfaction))
 # Table de contingence de l'âge et la satisfaction.
 barplot(tab[,2]/(tab[,1]+tab[,2]), # Fréquence de satisfaction
         width=tab[,1]+tab[,2], # Taille des groupes
@@ -465,7 +478,7 @@ change_age <- function(x){
   else
     return("61+")
 }
-DF.tmp = DF[,c(2:5)]
+DF.tmp = DF.train[,c(2:5)]
 # On applique la fonction change_age sur chaque ligne de la colonne Age.
 DF.tmp$Age = paste(lapply(DF.tmp$Age,change_age))
 ```
@@ -476,7 +489,7 @@ On a un nouveau dataframe pour les catégories d'âge comme variable qualitative
 paged_table(DF.tmp)
 ```
 
-Nous allons maintenant regrouper les individus par groupes en utilisant les différentes méthodes de clustering. On pourra de cette manière déterminer quels sont les profils les plus proches en terme de notation, et de satisfaction.
+Nous allons maintenant regrouper les individus par groupes en utilisant les différentes méthodes de clustering. On pourra de cette manière déterminer quels sont les profils les plus proches en terme de notation.
 
 ```{r,echo=FALSE}
 profils = data.frame(table(DF.tmp))
@@ -497,7 +510,7 @@ paged_table(profils)
 # On créer un liste de tout les profils.
 profils = paste(profils[,1], profils[,2], profils[,3], profils[,4], sep="/")
 # On recupère les notes.
-DF.notes = DF[,7:20]
+DF.notes = DF.train[,7:20]
 col_name = colnames(DF.notes)
 # On attribue un profil à chaque individu.
 DF.notes = cbind(paste(DF.tmp[,1], DF.tmp[,2], DF.tmp[,3], DF.tmp[,4], sep="/"), DF.notes)
@@ -539,18 +552,22 @@ rect.hclust(cah.ward,K)
 
 On a donc réussi à créer 6 groupes de profils similaires sur les 38 profils qu'on est en train d'étudier.
 
-Penchons nous sur la composition de ces groupes :
+Penchons nous sur la composition de ces groupes et analysons les graces aux silhouettes:
 
 ```{r, echo=FALSE}
 groupes.cah <-cutree(cah.ward, K)
-paged_table(data.frame(sort(groupes.cah)))
+sil=silhouette(groupes.cah,DF.agg.dist)
+plot(sil, col=rainbow(K), main="\t\tSilhouettes")
+rownames(sil)=rownames(DF.agg)
+DF.tmp=data.frame(sil[,c(1,2,3)])
+paged_table(DF.tmp[order(DF.tmp[,1]),])
 ```
 
 Dans le tableau ci-dessus on peut voir que :
 
-* Le groupe 1 rassemble des individus en business classe.
+* Le groupe 1 ne rassemble que des individus en business classe.
 
-* Le groupe 2 réunit les individus en business classe voyageant pour le business.
+* Le groupe 2 réunit en grande majorité les individus en business classe voyageant pour le business.
 
 * Le groupe 3 regroupe les clients fidèles.
 
@@ -560,6 +577,16 @@ Dans le tableau ci-dessus on peut voir que :
 
 * Le groupe 6 regroupe les passagers de 39 ans et plus, voyageant en éco ou éco plus.
 
+On remarque qu'en moyenne les groupes sont assez bien séparer, en effet, les silhouettes par groupe ne tombe jamais en dessous de 0.38 et la moyenne des silhouettes est de 0.46.
+
+On peut voir que certain profils comme :
+
+* Loyal Customer/61+/Personal Travel/Business
+* Loyal Customer/7-19/Personal Travel/Eco	
+* disloyal Customer/7-19/Business travel/Eco Plus
+
+Ont des silhouettes proche de 0, aux alentour de 0.15, ainsi ces profils chevauchent un ou plusieur groupes mais reste bien classé car leur silhouette est positive, on peut se référer au tableau dans la colonne "neighbor" pour voir quel groupe est le plus proche de leur profil.
+
 ***
 
 ```{r, echo=FALSE}
@@ -568,7 +595,7 @@ groupes.cah <-cutree(cah.ward, K)
 Means_groupes.cah <- matrix(NA, nrow=K, ncol=dim(DF.notes)[2])
 colnames(Means_groupes.cah)=c(colnames(DF.notes[,-1]),"satisfied")
 rownames(Means_groupes.cah)= paste("Groupe",1:K,sep="_")
-DF.tmp = data.frame(DF.notes,(DF[bool_profil,23]=="satisfied")*1)
+DF.tmp = data.frame(DF.notes,(DF.train[bool_profil,23]=="satisfied")*1)
 for (i in 1:K) Means_groupes.cah[i,] <- colMeans(DF.tmp[DF.tmp$profil %in% rownames(data.frame(groupes.cah[groupes.cah==i])),][,-1])
 ```
 
@@ -578,11 +605,11 @@ On va s'intéresser à la fréquence des individus satisfaits par cluster.
 
 On voit que les fréquences diffèrent selon les groupes, ainsi, certains groupes sont en moyenne plus satisfait que d'autres.
 
-Par exemple, le cluster n°3 possèdela fréquence de satisfaction la plus élevé avec près de 73%, ainsi un individu ayant un profil associé à ce cluster aura tendance à être satisfait. À l'inverse, un passager dont le profil appartient au cluster n°4, où la fréquence de satisfaction est de 7%, aura tendance à être neutre ou insatisfait.
+Par exemple, le cluster n°3 possède la fréquence de satisfaction la plus élevé avec près de 73%, ainsi un individu ayant un profil associé à ce cluster aura tendance à être satisfait. À l'inverse, un passager dont le profil appartient au cluster n°4, où la fréquence de satisfaction est de 7%, aura tendance à être neutre ou insatisfait.
 
-On a donc réussi à trouver des groupes de profils qui diffèrent par la fréquence de satisfaction des individus qui le constituent.
+On a donc réussi à trouver des groupes de profils qui diffèrent par leur notes et ainsi la fréquence de satisfaction des individus qui le constituent.
 
-```{r}
+```{r, echo=FALSE}
 paged_table(data.frame(Means_groupes.cah))
 ```
 
@@ -596,7 +623,7 @@ On peut vérifié si le $K=6$ mis en évidence par le clustering cah était un b
 
 En effet, on voit que la diminution de l'inertie intra-classe est moins significative à partir de $K=6$, on aurait pu prendre $K$ un peu plus grand, mais pourquoi s'embêter avec un nombre de clusters trop élevé quand l'objectif est de regrouper au maximum sans perdre trop d'inertie.
 
-```{r}
+```{r, echo=FALSE}
 inertie.intra <-rep(0,times=37)
 for(k in 1:37){
   kmeans.result <-kmeans(DF.agg,centers=k,nstart=100)
@@ -608,16 +635,16 @@ plot(1:37,inertie.intra,type="b",xlab="K",ylab="Inertie intra-classe",
 abline(v=6, col="red")
 ```
 
-On réalise ensuite le Kmeans, avec le meme nombre de groupes qu'avec le CAH.
+On réalise ensuite le K-means, avec le meme nombre de groupes qu'avec le CAH.
 
-```{r}
+```{r, echo=FALSE}
 res.kmeans = kmeans(DF.agg, centers=Means_groupes.cah[,-15])
 groupes.kmeans = res.kmeans$cluster
 
 Means_groupes.kmeans <- matrix(NA, nrow=K, ncol=dim(DF.notes)[2])
 colnames(Means_groupes.kmeans)=c(colnames(DF.notes[,-1]),"satisfied")
 rownames(Means_groupes.kmeans)= paste("Groupe",1:K,sep="_")
-DF.tmp = data.frame(DF.notes,(DF[bool_profil,23]=="satisfied")*1)
+DF.tmp = data.frame(DF.notes,(DF.train[bool_profil,23]=="satisfied")*1)
 for (i in 1:K) Means_groupes.kmeans[i,] <- colMeans(DF.tmp[DF.tmp$profil %in% rownames(data.frame(groupes.kmeans[groupes.kmeans==i])),][,-1])
 ```
 
@@ -634,8 +661,6 @@ paged_table(data.frame(Means_groupes.kmeans))
 ```
 
 
-### Visualisation 
-
 On représente les clusters en 2D à l'aide des composantes principales. On remarque que certains clusters se chevauchent, cette représentation montre l'emplacement de chacun des profils et du groupe auquel il appartient. 
 
 On remarque qu'un groupe numéro 3 est isolé du reste des observations, c'est celui possédant le plus faible taux de satisfaction (0.07%). Sur le graphe des principales composantes (axes 1 et 2), ce groupe se situe à gauche, or on a vu dans l'ACP que les individus les moins satisfait se situaient bel et bien à gauche de l'axe 1.
@@ -648,5 +673,33 @@ fviz_cluster(res.kmeans, data = DF.agg,
              ellipse.type = "convex", 
              ggtheme = theme_bw(),
              main = "Kmeans : Représentation des clusters")
+```
+
+
+
+## Classification supervisé
+
+### CART
+
+```{r}
+arbre=rpart(DF.train$Satisfaction~.,DF.train)
+rpart.plot(arbre, type=0)
+pred=predict(arbre, newdata=DF.test[,-23], type="class")
+sum((pred==DF.test[,23])*1)/length(pred)
+```
+
+```{r}
+arbre=rpart(DF.train$Satisfaction~.,DF.train,control=rpart.control(minsplit=1,cp=0))
+cp.opt <- arbre$cptable[which.min(arbre$cptable[, "xerror"]), "CP"]
+arbre.opt <- prune(arbre,cp=cp.opt)
+rpart.plot(arbre.opt, type=0)
+pred=predict(arbre.opt, newdata=DF.test[,-23], type="class")
+sum((pred==DF.test[,23])*1)/length(pred)
+```
+
+```{r}
+forest=randomForest(factor(DF.train$Satisfaction)~., DF.train, ntree=30)
+pred=predict(forest, newdata=DF.test, type="class")
+sum((pred==DF.test[,23])*1)/length(pred)
 ```
 
