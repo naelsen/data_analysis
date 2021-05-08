@@ -14,12 +14,14 @@ rm(list=ls())
 # Import des librairies nécessaires pour les analyses.
 library(FactoMineR)
 library(MASS)
+library(klaR)
 library(rmarkdown)
 library(factoextra)
 library(cluster)
 library(rpart)
 library(rpart.plot)
 library(randomForest)
+library(pROC)
 ```
 
 
@@ -694,12 +696,91 @@ cp.opt <- arbre$cptable[which.min(arbre$cptable[, "xerror"]), "CP"]
 arbre.opt <- prune(arbre,cp=cp.opt)
 rpart.plot(arbre.opt, type=0)
 pred=predict(arbre.opt, newdata=DF.test[,-23], type="class")
-sum((pred==DF.test[,23])*1)/length(pred)
+pred_cart = predict(arbre.opt, newdata=DF.test[,-23], type="prob")
+prop_cart = sum((pred==DF.test[,23])*1)/length(pred)
+
+prop_cart
 ```
+### LDA / QDA
+
+On utilise les méthodes de classification supervisée pour prédire le comportement de notre data.test.
+
 
 ```{r}
-forest=randomForest(factor(DF.train$Satisfaction)~., DF.train, ntree=30)
-pred=predict(forest, newdata=DF.test, type="class")
-sum((pred==DF.test[,23])*1)/length(pred)
+DF.test
+res_lda <- lda(DF.train$Satisfaction~.,data=DF.train)
+res_qda <- qda(DF.train$Satisfaction~.,data=DF.train)
 ```
+
+Prediction
+```{r}
+# --- LDA
+pred.lda = predict(res_lda,  newdata = DF.test)$class
+tab_lda = table(DF.test$Satisfaction ,pred.lda)
+prop_lda = (tab_lda[2,2] + tab_lda[1,1])/sum(tab_lda)
+prop_lda
+# --- QDA
+pred.qda = predict(res_qda,  newdata = DF.test)
+tab_qda = table(DF.test$Satisfaction ,pred.qda$class)
+prop_qda = (tab_qda[2,2] + tab_qda[1,1])/sum(tab_qda)
+prop_qda
+```
+Stepwise : 
+
+```{r}
+stepwise_lda=stepclass(Satisfaction ~., data=DF.train[1:10000,], method="lda", direction="backward")
+res_stepwise_lda = lda(stepwise_lda$formula, data=DF.train[1:10000,])
+stepwise_qda = stepclass(Satisfaction~., data=DF.train[1:10000,], method="qda", direction="backward")
+res_stepwise_qda = qda(stepwise_lda$formula, data=DF.train[1:10000,])
+pred_stepwise_lda <- predict(res_stepwise_lda,newdata=DF.test[1:2000,])$posterior[,2]
+pred_stepwise_qda <- predict(res_stepwise_qda,newdata=DF.test[1:2000,])$posterior[,2] 
+```
+
+
+### RandomForest
+
+
+```{r}
+forest=randomForest(factor(DF.train$Satisfaction)~., DF.train, ntree = 30)
+pred=predict(forest, newdata=DF.test, type="class")
+pred_RF = predict(forest, newdata=DF.test, type="prob")
+prop_RF = sum((pred==DF.test[,23])*1)/length(pred)
+prop_RF
+```
+
+
+
+```{r}
+# ----------------------------------------------------------------------------
+ROC_lda  <- roc(DF.test[1:2000,]$Satisfaction , pred_stepwise_lda)
+ROC_qda  <- roc(DF.test[1:2000,]$Satisfaction, pred_stepwise_qda)
+ROC_cart <- roc(DF.test$Satisfaction, pred_cart[,2])
+ROC_RF   <- roc(DF.test$Satisfaction, pred_RF[,2])
+
+plot(ROC_lda ,print.auc=TRUE, print.auc.y = 0.5)
+legend("bottomright",col = 1:4, lwd=2,c("lda","qda","CART","RF"))
+plot(ROC_qda,print.auc=TRUE,add = TRUE , print.auc.y = 0.4, col = 2)
+plot(ROC_cart,print.auc=TRUE,add = TRUE , print.auc.y = 0.3, col = 3)
+plot(ROC_RF,print.auc=TRUE,add = TRUE , print.auc.y = 0.2, col = 4)
+title("Roc courbes ou jsp")
+```
+
+
+Table d'accurancy : 
+
+
+```{r}
+Accurancy <- c(prop_cart,prop_lda,prop_lda2,prop_qda,prop_qda2,prop_RF)
+names(Accurancy) = c("CART", "lda", "lda_stpw", "qda", "qda_stpw", "RF")
+paged_table(data.frame(Accurancy))
+```
+
+
+
+
+
+
+
+
+
 
