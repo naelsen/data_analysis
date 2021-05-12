@@ -567,9 +567,9 @@ paged_table(DF.tmp[order(DF.tmp[,1]),])
 
 Dans le tableau ci-dessus on peut voir que :
 
-* Le groupe 1 ne rassemble que des individus en business classe.
+* Le groupe 1 ne rassemble que des individus en business class.
 
-* Le groupe 2 réunit en grande majorité les individus en business classe voyageant pour le business.
+* Le groupe 2 réunit en grande majorité les individus en business class voyageant pour le business.
 
 * Le groupe 3 regroupe les clients fidèles.
 
@@ -579,7 +579,7 @@ Dans le tableau ci-dessus on peut voir que :
 
 * Le groupe 6 regroupe les passagers de 39 ans et plus, voyageant en éco ou éco plus.
 
-On remarque qu'en moyenne les groupes sont assez bien séparer, en effet, les silhouettes par groupe ne tombe jamais en dessous de 0.38 et la moyenne des silhouettes est de 0.46.
+On remarque qu'en moyenne les groupes sont assez bien séparés, en effet, les silhouettes moyennes par groupe ne tombent jamais en dessous de 0.38 et la moyenne des silhouettes est de 0.46.
 
 On peut voir que certain profils comme :
 
@@ -587,7 +587,7 @@ On peut voir que certain profils comme :
 * Loyal Customer/7-19/Personal Travel/Eco	
 * disloyal Customer/7-19/Business travel/Eco Plus
 
-Ont des silhouettes proche de 0, aux alentour de 0.15, ainsi ces profils chevauchent un ou plusieur groupes mais reste bien classé car leur silhouette est positive, on peut se référer au tableau dans la colonne "neighbor" pour voir quel groupe est le plus proche de leur profil.
+ont des silhouettes proche de 0, aux alentour de 0.15, ainsi ces profils chevauchent un ou plusieur groupes mais reste bien classés car leur silhouette est positive, on peut se référer au tableau dans la colonne "neighbor" pour voir quel groupe est le plus proche de leur profil.
 
 ***
 
@@ -678,20 +678,29 @@ fviz_cluster(res.kmeans, data = DF.agg,
 ```
 
 
-
 ## Classification supervisé
 
 ### CART
 
+Nous allons maintenant utiliser les algorithmes de classification supervisée pour tenter de prédire la satisfaction des voyageurs. Penchons nous sur l'arbre de décision suffisamment élagué pour être lisible. 
+
+On peut observer que les voyageurs ayant mis une note pour l'enregistrement en ligne inférieure à 4, et une note pour le wifi comprise entre 1 inclus et 4 exclus sont plus fréquemment neutre ou insatisfait, seulement 6% d'entre eux sont satisfaits. De plus, ils représentent 44% du jeu d'entrainement. 
+
+Un voyageur ayant noté à 4 ou 5 l'enregistrement en ligne, qui voyage pour des raison personnelles et ayant noté 5 le Wifi, sera satisfait à 100%. Ils représentent 1% du jeu d'entrainement.
+
 ```{r}
-arbre=rpart(DF.train$Satisfaction~.,DF.train)
-rpart.plot(arbre, type=0)
-pred=predict(arbre, newdata=DF.test[,-23], type="class")
-sum((pred==DF.test[,23])*1)/length(pred)
+res.tree = rpart(Satisfaction~., data =  DF.train)
+rpart.plot(res.tree, type=0)
+```
+L'arbre de décision prédit correctement la satisfaction des voyageurs avec 88% de précision binaire.
+
+```{r}
+pred.cart = predict(res.tree, newdata=DF.test[,-23], type="class")
+sum((pred.cart == DF.test[,23])*1)/length(pred.cart)
 ```
 
 ```{r}
-arbre=rpart(DF.train$Satisfaction~.,DF.train,control=rpart.control(minsplit=1,cp=0))
+arbre=rpart(DF.train$Satisfaction~.,DF.train,control=rpart.control(minsplit = 50 ,cp=0))
 cp.opt <- arbre$cptable[which.min(arbre$cptable[, "xerror"]), "CP"]
 arbre.opt <- prune(arbre,cp=cp.opt)
 rpart.plot(arbre.opt, type=0)
@@ -708,8 +717,8 @@ On utilise les méthodes de classification supervisée pour prédire le comporte
 
 ```{r}
 DF.test
-res_lda <- lda(DF.train$Satisfaction~.,data=DF.train)
-res_qda <- qda(DF.train$Satisfaction~.,data=DF.train)
+res.lda <- lda(DF.train$Satisfaction~.,data=DF.train)
+res.qda <- qda(DF.train$Satisfaction~.,data=DF.train)
 ```
 
 Prediction
