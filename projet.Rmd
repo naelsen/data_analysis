@@ -688,10 +688,11 @@ On peut observer que les voyageurs ayant mis une note pour l'enregistrement en l
 
 Un voyageur ayant noté à 4 ou 5 l'enregistrement en ligne, qui voyage pour des raison personnelles et ayant noté 5 le Wifi, sera satisfait à 100%. Ils représentent 1% du jeu d'entrainement.
 
-```{r}
+```{r builde_tree}
 res.tree <- rpart(Satisfaction~., data=DF.train)
 rpart.plot(res.tree, type=0)
 ```
+
 L'arbre de décision prédit correctement la satisfaction des voyageurs avec 88.4% de précision binaire.
 
 ```{r}
@@ -701,16 +702,18 @@ pred.prop.tree  <- predict(res.tree, newdata=DF.test[,-23], type="prob")
 score.tree = sum((pred.class.tree == DF.test[,23])*1)/length(pred.class.tree)
 score.tree
 ```
+
 Optimisons le paramètre de complexité (cp) afin d'avoir une élagation optimale pour l'arbre et d'ainsi minimiser le risque de surapprentissage.
 
 On remarque que l'arbre est illisible, on pourra quand même trouver le score de ce modèle optimisé.
 
-```{r}
+```{r, warning=FALSE}
 res.tree.opt <- rpart(Satisfaction~.,DF.train,control=rpart.control(minsplit = 50 ,cp=0))
 cp.opt <- res.tree.opt$cptable[which.min(res.tree.opt$cptable[, "xerror"]), "CP"]
 res.tree.opt <- prune(res.tree.opt,cp=cp.opt)
 rpart.plot(res.tree.opt, type=0)
 ```
+
 L'arbre de décision optimisé a un score de 95.5%.
 
 ```{r}
@@ -719,13 +722,15 @@ pred.prob.tree.opt <- predict(res.tree.opt, newdata=DF.test[,-23], type="prob")
 score.tree.opt = sum((pred.class.tree.opt==DF.test[,23])*1)/length(pred.class.tree.opt)
 score.tree.opt
 ```
+
 ### LDA / QDA
 
 On utilise les méthodes de classification supervisée pour prédire le comportement de notre data.test.
 
 Avec ces méthodes, on tente de prédire la satisfaction des clients.
 
-On crée nos modèles : 
+On crée nos modèles :
+
 ```{r}
 res.lda <- lda(Satisfaction~.,data=DF.train[,c(7:20,23)])
 res.qda <- qda(Satisfaction~.,data=DF.train[,c(7:20,23)])
@@ -733,6 +738,7 @@ res.qda <- qda(Satisfaction~.,data=DF.train[,c(7:20,23)])
 
 
 Le score obtenu par la méthode lda est de 81.3%
+
 ```{r}
 # --- LDA
 pred.class.lda <- predict(res.lda,  newdata = DF.test[,7:20])$class
@@ -742,6 +748,7 @@ score.lda
 ```
 
 Le score obtenu par la méthode qda est de 81.6%
+
 ```{r}
 # --- QDA
 pred.class.qda <- predict(res.qda,  newdata = DF.test[,7:20])$class
@@ -749,9 +756,12 @@ pred.prob.qda  <- predict(res.qda,  newdata = DF.test[,7:20])$posterior[,2]
 score.qda = sum(pred.class.qda==DF.test[,23])/length(pred.class.qda)
 score.qda
 ```
+
+### Séléction de modèle
+
 On lance une procédure de sélection de modèle avec une méthode de cross validation 5-fold. Le temps d'exécution de la méthode par défaut (10-fold) était trés long du à la taille du jeu de données. Afin de construire notre modèle nous nous appuyons "seulement" sur les 10 000 premiers individus, et non les 100 000, car sinon la selection de modèle est très longue.
 
-```{r ATTENTION CELLULE LONGUE PRENEZ UN CAFÉ}
+```{r ATTENTION CELLULE LONGUE PRENEZ UN CAFÉ, message=FALSE}
 res.stepwise.lda=stepclass(Satisfaction ~., data=DF.train[1:10000,c(7:20,23)] , method="lda", direction="backward", fold=5)
 res.stepwise.qda=stepclass(Satisfaction ~., data=DF.train[1:10000,c(7:20,23)] , method="qda", direction="backward", fold=5)
 
@@ -798,6 +808,9 @@ score.RF
 ```
 
 
+### Comparaison des modèles 
+
+#### Courbes ROC
 
 ```{r,message=FALSE}
 # ----------------------------------------------------------------------------
@@ -810,9 +823,10 @@ ROC.tree.opt      <- roc(DF.test$Satisfaction, pred.prob.tree.opt[,2])
 ROC.RF            <- roc(DF.test$Satisfaction, pred.prob.RF[,2])
 ```
 
+
 On remarque, grâce aux courbes ROC, que les meilleurs modèles sont l'arbre de décision optimisé et la Random Forest. En effet, l'air sous la courbe ROC des ces deux modèles est plus élevé que celles des autres modèles. De plus ces modèles sont très bon car l'air sous leur courbe ROC se rapproche de 1.
 
-```{r, echo=FALSE}
+```{r courbes_roc, echo=FALSE}
 plot(ROC.lda, col=1)
 plot(ROC.qda, add=TRUE, col=2)
 plot(ROC.stepwise.lda, add=TRUE,col=3)
@@ -828,8 +842,7 @@ title("Courbe ROC des différents modèles")
 ```
 
 
-Récapitulatif : 
-
+#### Récapitulatif
 
 ```{r, echo=FALSE, }
 Score = c(score.lda, score.qda, score.stepwise.lda, score.stepwise.qda, score.tree, score.tree.opt, score.RF)
