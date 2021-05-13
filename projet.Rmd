@@ -140,7 +140,7 @@ Il est évident de penser que plus les notes attribuées par les voyageurs sont 
 # On recupère les notes dans le dataframe, et on en fait la moyenne.
 mean_notes <-rowMeans(DF.train[,7:20])
 # Table de contingence pour les notes moyennes et la satisfaction.
-tmp = table(as.factor(mean_notes),DF.train$Satisfaction)
+tmp <- table(as.factor(mean_notes),DF.train$Satisfaction)
 barplot((tmp/rowSums(tmp))[,2], # Fréquence de satisfaction.
          width=rowSums(tmp),    # Taille des groupes.
          col=rainbow(n = dim(tmp)[1],alpha=0.8,start=0,end=0.4),
@@ -689,88 +689,133 @@ On peut observer que les voyageurs ayant mis une note pour l'enregistrement en l
 Un voyageur ayant noté à 4 ou 5 l'enregistrement en ligne, qui voyage pour des raison personnelles et ayant noté 5 le Wifi, sera satisfait à 100%. Ils représentent 1% du jeu d'entrainement.
 
 ```{r}
-res.tree = rpart(Satisfaction~., data =  DF.train)
+res.tree <- rpart(Satisfaction~., data=DF.train)
 rpart.plot(res.tree, type=0)
 ```
-L'arbre de décision prédit correctement la satisfaction des voyageurs avec 88% de précision binaire.
+L'arbre de décision prédit correctement la satisfaction des voyageurs avec 88.4% de précision binaire.
 
 ```{r}
-pred.cart = predict(res.tree, newdata=DF.test[,-23], type="class")
-sum((pred.cart == DF.test[,23])*1)/length(pred.cart)
+pred.class.tree <- predict(res.tree, newdata=DF.test[,-23], type="class")
+pred.prop.tree  <- predict(res.tree, newdata=DF.test[,-23], type="prob")
+
+score.tree = sum((pred.class.tree == DF.test[,23])*1)/length(pred.class.tree)
+score.tree
 ```
+Optimisons le paramètre de complexité (cp) afin d'avoir une élagation optimale pour l'arbre et d'ainsi minimiser le risque de surapprentissage.
+
+On remarque que l'arbre est illisible, on pourra quand même trouver le score de ce modèle optimisé.
 
 ```{r}
-arbre=rpart(DF.train$Satisfaction~.,DF.train,control=rpart.control(minsplit = 50 ,cp=0))
-cp.opt <- arbre$cptable[which.min(arbre$cptable[, "xerror"]), "CP"]
-arbre.opt <- prune(arbre,cp=cp.opt)
-rpart.plot(arbre.opt, type=0)
-pred=predict(arbre.opt, newdata=DF.test[,-23], type="class")
-pred_cart = predict(arbre.opt, newdata=DF.test[,-23], type="prob")
-prop_cart = sum((pred==DF.test[,23])*1)/length(pred)
+res.tree.opt <- rpart(Satisfaction~.,DF.train,control=rpart.control(minsplit = 50 ,cp=0))
+cp.opt <- res.tree.opt$cptable[which.min(res.tree.opt$cptable[, "xerror"]), "CP"]
+res.tree.opt <- prune(res.tree.opt,cp=cp.opt)
+rpart.plot(res.tree.opt, type=0)
+```
+L'arbre de décision optimisé a un score de 95.5%.
 
-prop_cart
+```{r}
+pred.class.tree.opt <- predict(res.tree.opt, newdata=DF.test[,-23], type="class")
+pred.prob.tree.opt <- predict(res.tree.opt, newdata=DF.test[,-23], type="prob")
+score.tree.opt = sum((pred.class.tree.opt==DF.test[,23])*1)/length(pred)
+score.tree.opt
 ```
 ### LDA / QDA
 
 On utilise les méthodes de classification supervisée pour prédire le comportement de notre data.test.
 
+Avec ces méthodes, on tente de prédire la satisfaction des clients.
 
+On crée nos modèles : 
 ```{r}
-DF.test
-res.lda <- lda(DF.train$Satisfaction~.,data=DF.train)
-res.qda <- qda(DF.train$Satisfaction~.,data=DF.train)
+res.lda <- lda(Satisfaction~.,data=DF.train[,c(7:20,23)])
+res.qda <- qda(Satisfaction~.,data=DF.train[,c(7:20,23)])
 ```
 
-Prediction
+
+Le score obtenu par la méthode lda est de 81.3%
 ```{r}
 # --- LDA
-pred.lda = predict(res_lda,  newdata = DF.test)$class
-tab_lda = table(DF.test$Satisfaction ,pred.lda)
-prop_lda = (tab_lda[2,2] + tab_lda[1,1])/sum(tab_lda)
-prop_lda
-# --- QDA
-pred.qda = predict(res_qda,  newdata = DF.test)
-tab_qda = table(DF.test$Satisfaction ,pred.qda$class)
-prop_qda = (tab_qda[2,2] + tab_qda[1,1])/sum(tab_qda)
-prop_qda
+pred.class.lda <- predict(res.lda,  newdata = DF.test[,c(7:20,23)])$class
+pred.prob.lda <- predict(res.lda,  newdata = DF.test[,c(7:20,23)])
+score.lda = sum(pred.class.lda==DF.test[,23])/length(pred.class.lda)
+score.lda
+
+pred.prob.lda
 ```
-Stepwise : 
+
+Le score obtenu par la méthode qda est de 81.6%
+```{r}
+# --- QDA
+pred.class.qda <- predict(res.qda,  newdata = DF.test[,7:20])$class
+pred.prob.qda <- predict(res.qda,  newdata = DF.test[,7:20])$prob
+tab.qda <- table(DF.test$Satisfaction ,pred.class.qda)
+score.qda = sum(pred.class.qda==DF.test[,23])/length(pred.class.qda)
+score.qda
+```
+On lance une procédure de sélection de modèle avec une méthode de cross validation 3-fold. Le temps d'exécution de la méthode par défaut (10-fold) était trés long du à la taille du jeu de données. 
 
 ```{r}
-stepwise_lda=stepclass(Satisfaction ~., data=DF.train[1:10000,], method="lda", direction="backward")
-res_stepwise_lda = lda(stepwise_lda$formula, data=DF.train[1:10000,])
-stepwise_qda = stepclass(Satisfaction~., data=DF.train[1:10000,], method="qda", direction="backward")
-res_stepwise_qda = qda(stepwise_lda$formula, data=DF.train[1:10000,])
-pred_stepwise_lda <- predict(res_stepwise_lda,newdata=DF.test[1:2000,])$posterior[,2]
-pred_stepwise_qda <- predict(res_stepwise_qda,newdata=DF.test[1:2000,])$posterior[,2] 
+res.stepwise.lda=stepclass(Satisfaction ~., data=DF.train[1:5000,c(7:20,23)] , method="lda", direction="backward", fold=3)
+res.stepwise.qda=stepclass(Satisfaction ~., data=DF.train[1:5000,c(7:20,23)] , method="qda", direction="backward", fold=3)
+
+res.stepwise.lda = lda(res.stepwise.lda$formula , data = DF.train[1:5000,c(7:20,23)] )
+res.stepwise.qda = qda(res.stepwise.qda$formula , data = DF.train[1:5000,c(7:20,23)] )
+```
+
+
+On prédit la satisfaction des passagers 
+```{r}
+pred.stepwise.lda <- predict(res.stepwise.lda,newdata=DF.test[,c(7:20,23)])$posterior[,2]
+pred.stepwise.qda <- predict(res.stepwise.qda,newdata=DF.test[,c(7:20,23)])$posterior[,2]
+```
+
+
+La séléction de modèle avec lda a un score de 81.3% 
+```{r}
+pred.prop.stepwise.lda <- predict(res.stepwise.lda,newdata=DF.test[,c(7:20,23)])$posterior[,2]
+score.stepwise.lda = sum(round(pred.stepwise.lda)==(DF.test[,c(7:20,23)]$Satisfaction =="satisfied")*1)/dim(DF.test[1:1000,c(7:20,23)])[1]
+score.stepwise.lda
+```
+
+La séléction de modèle avec qda a un score de 85.1% 
+```{r}
+pred.prop.stepwise.qda <- predict(res.stepwise.qda,newdata=DF.test[1:1000,c(7:20,23)])$posterior[,2]
+score.stepwise.qda = sum(round(pred.prop.stepwise.qda)==(DF.test[1:1000,c(7:20,23)]$Satisfaction =="satisfied")*1)/dim(DF.test[1:1000,c(7:20,23)])[1]
+score.stepwise.qda
 ```
 
 
 ### RandomForest
 
-
+On obtient un score de 96.2% avec le Random Forest
 ```{r}
 forest=randomForest(factor(DF.train$Satisfaction)~., DF.train, ntree = 30)
-pred=predict(forest, newdata=DF.test, type="class")
-pred_RF = predict(forest, newdata=DF.test, type="prob")
-prop_RF = sum((pred==DF.test[,23])*1)/length(pred)
-prop_RF
+pred.class.RF=predict(forest, newdata=DF.test, type="class")
+pred.prob.RF = predict(forest, newdata=DF.test, type="prob")
+score.RF=sum((pred.class.RF==DF.test[,23])*1)/length(pred)
+score.RF
 ```
 
 
 
 ```{r}
 # ----------------------------------------------------------------------------
-ROC_lda  <- roc(DF.test[1:2000,]$Satisfaction , pred_stepwise_lda)
-ROC_qda  <- roc(DF.test[1:2000,]$Satisfaction, pred_stepwise_qda)
-ROC_cart <- roc(DF.test$Satisfaction, pred_cart[,2])
-ROC_RF   <- roc(DF.test$Satisfaction, pred_RF[,2])
+ROC.lda  <- roc(DF.test$Satisfaction, pred.prob.lda)
+ROC.qda  <- roc(DF.test$Satisfaction, pred.prob.qda)
+ROC.stepwise.lda  <- roc(DF.test[1:1000,]$Satisfaction, pred.prop.stepwise.lda)
+ROC.stepwise.qda  <- roc(DF.test[1:1000,]$Satisfaction, pred.prop.stepwise.qda)
+ROC.tree <- roc(DF.test$Satisfaction, pred.prop.tree[,2])
+ROC.tree.opt <- roc(DF.test$Satisfaction, pred.prob.tree.opt[,2])
+ROC.RF   <- roc(DF.test$Satisfaction, pred.prob.RF[,2])
+```
 
-plot(ROC_lda ,print.auc=TRUE, print.auc.y = 0.5)
-legend("bottomright",col = 1:4, lwd=2,c("lda","qda","CART","RF"))
-plot(ROC_qda,print.auc=TRUE,add = TRUE , print.auc.y = 0.4, col = 2)
-plot(ROC_cart,print.auc=TRUE,add = TRUE , print.auc.y = 0.3, col = 3)
-plot(ROC_RF,print.auc=TRUE,add = TRUE , print.auc.y = 0.2, col = 4)
+```{r}
+plot(ROC.stepwise.lda ,print.auc=TRUE, print.auc.y = 0.5)
+legend("bottomright",col = 1:5, lwd=2,c("lda","qda","Tree","Tree opt","RF"))
+plot(ROC.stepwise.qda,print.auc=TRUE,add = TRUE , print.auc.y = 0.4, col = 2)
+plot(ROC.tree,print.auc=TRUE,add = TRUE , print.auc.y = 0.3, col = 3)
+plot(Roc.tree.opt,print.auc=TRUE,add = TRUE , print.auc.y = 0.2, col = 4)
+plot(ROC.RF,print.auc=TRUE,add = TRUE , print.auc.y = 0.1, col = 5)
 title("Roc courbes ou jsp")
 ```
 
