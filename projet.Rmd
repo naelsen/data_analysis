@@ -22,6 +22,7 @@ library(rpart)
 library(rpart.plot)
 library(randomForest)
 library(pROC)
+library(neuralnet)
 ```
 
 
@@ -559,7 +560,7 @@ Penchons nous sur la composition de ces groupes et analysons les graces aux silh
 ```{r, echo=FALSE}
 groupes.cah <-cutree(cah.ward, K)
 sil=silhouette(groupes.cah,DF.agg.dist)
-plot(sil, col=rainbow(K), main="\t\tSilhouettes")
+plot(sil, col=rainbow(K), main="\t\t\t\t\t\t\t\t\tSilhouette")
 rownames(sil)=rownames(DF.agg)
 DF.tmp=data.frame(sil[,c(1,2,3)])
 paged_table(DF.tmp[order(DF.tmp[,1]),])
@@ -668,7 +669,7 @@ On représente les clusters en 2D à l'aide des composantes principales. On rema
 On remarque qu'un groupe numéro 3 est isolé du reste des observations, c'est celui possédant le plus faible taux de satisfaction (0.07%). Sur le graphe des principales composantes (axes 1 et 2), ce groupe se situe à gauche, or on a vu dans l'ACP que les individus les moins satisfait se situaient bel et bien à gauche de l'axe 1.
 
 
-```{r, echo=FALSE}
+```{r, echo=FALSE, warning=FALSE}
 fviz_cluster(res.kmeans, data = DF.agg,
              palette = rainbow(K), 
              geom = "point",
@@ -841,7 +842,6 @@ legend("bottomright",col = 1:7, lwd=2, leg)
 title("Courbe ROC des différents modèles")
 ```
 
-
 #### Récapitulatif
 
 ```{r, echo=FALSE, }
@@ -855,9 +855,109 @@ paged_table(tab)
 
 
 
+## Python
+
+### Réseaux de neuronnes 
+
+On passe en langage python pour réaliser la prédiction par réseaux de neuronnes
+```{python}
+import pandas as pd
+import numpy as np
+import keras
+```
+
+
+
+```{python}
+DF_train = pd.read_csv("data/train.csv")
+DF_test = pd.read_csv("data/test.csv")
+
+DF_train.drop(["Unnamed: 0","id"], axis=1, inplace=True)
+DF_test.drop(["Unnamed: 0","id"], axis=1, inplace=True)
+
+DF_train = DF_train.dropna()
+DF_test = DF_test.dropna()
+```
+
+
+
+```{python}
+DF_train.Gender = (DF_train.Gender == "Male")*1                     # Male = 1 ; Femme = 0
+DF_test.Gender = (DF_test.Gender == "Male")*1
+
+DF_train.iloc[:,1] = (DF_train.iloc[:,1] == 'Loyal Customer')*1     # Loyal Customer = 1 ; disloyal Customer = 0
+DF_test.iloc[:,1] = (DF_test.iloc[:,1] == 'Loyal Customer')*1
+
+DF_train.iloc[:,3] = (DF_train.iloc[:,3] == 'Business travel')*1    # Business travel = 1 ; Personal Travel = 0
+DF_test.iloc[:,3] = (DF_test.iloc[:,3] == 'Business travel')*1
+
+DF_train.iloc[DF_train.iloc[:,4] == 'Business',4] = 2               # Business = 2
+DF_train.iloc[DF_train.iloc[:,4] == 'Eco Plus',4] = 1               # Eco PLus = 1
+DF_train.iloc[DF_train.iloc[:,4] == 'Eco',4] = 0                    # Eco = 0
+DF_test.iloc[DF_test.iloc[:,4] == 'Business',4] = 2
+DF_test.iloc[DF_test.iloc[:,4] == 'Eco Plus',4] = 1
+DF_test.iloc[DF_test.iloc[:,4] == 'Eco',4] = 0
+
+DF_train.iloc[:,-1] = (DF_train.iloc[:,-1] == 'satisfied')*1        # satisfied = 1 ; neutral or disatisfied = 0
+DF_test.iloc[:,-1] = (DF_test.iloc[:,-1] == 'satisfied')*1
+```
 
 
 
 
 
+
+
+```{python}
+sample_train = DF_train.to_numpy()
+sample_test = DF_test.to_numpy()
+
+X_train = []
+Y_train = []
+X_test = []
+Y_test = []
+```
+
+
+```{python}
+for i in range(len(sample_train)):
+    X_train.append(sample_train[i][:-1])
+    Y_train.append(sample_train[i][-1])
+X_train = np.array(X_train)
+Y_train = np.array(Y_train)
+
+for i in range(len(sample_test)):
+    X_test.append(sample_test[i][:-1])
+    Y_test.append(sample_test[i][-1])
+X_test = np.asarray(X_test).astype(np.float32)
+Y_test = np.asarray(Y_test).astype(np.float32)
+```
+
+
+
+```{python}
+model = keras.Sequential()
+
+
+model.add(keras.layers.Dense(128,activation="tanh"))
+model.add(keras.layers.Dense(16,activation="softmax"))
+model.add(keras.layers.Dense(1,activation="sigmoid"))
+
+model.compile(optimizer="Adam",
+                loss="binary_crossentropy",
+                metrics=['accuracy'])
+
+X_train = np.asarray(X_train).astype(np.float32)
+Y_train = np.asarray(Y_train).astype(np.float32)
+```
+
+
+```{python}
+model.fit(X_train, Y_train, epochs=100, batch_size=1024)
+```
+
+
+```{python}
+model.evaluate(X_test, Y_test)
+```
 
